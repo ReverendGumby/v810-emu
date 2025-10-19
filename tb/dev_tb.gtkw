@@ -1,0 +1,89 @@
+[*]
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Sun Oct 19 07:18:43 2025
+[*]
+[dumpfile] "/Users/dhunter/src/v810-emu/tb/dev_tb.vcd"
+[dumpfile_mtime] "Sun Oct 19 07:18:27 2025"
+[dumpfile_size] 25155
+[savefile] "/Users/dhunter/src/v810-emu/tb/dev_tb.gtkw"
+[timestart] 0
+[size] 1333 600
+[pos] -1 -1
+*-16.985962 40000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+[markername] AA
+[markername] BB
+[markername] CC
+[markername] DD
+[markername] EE
+[markername] FF
+[markername] GG
+[markername] HH
+[markername] II
+[markername] JJ
+[markername] KK
+[markername] LL
+[markername] MM
+[markername] NN
+[markername] OO
+[markername] PP
+[markername] QQ
+[markername] RR
+[markername] SS
+[markername] TT
+[markername] UU
+[markername] VV
+[markername] WW
+[markername] XX
+[markername] YY
+[markername] ZZ
+[treeopen] dev_tb.
+[sst_width] 255
+[signals_width] 195
+[sst_expanded] 1
+[sst_vpaned_height] 159
+@28
+dev_tb.dut.CLK
+@22
+dev_tb.dut.pc[31:1]
+dev_tb.dut.IA[31:0]
+dev_tb.dut.ID[15:0]
+@800200
+-rmem
+@23
+dev_tb.dut.rmem00[31:0]
+@22
+dev_tb.dut.rmem01[31:0]
+dev_tb.dut.rmem02[31:0]
+dev_tb.dut.rmem03[31:0]
+dev_tb.dut.rmem04[31:0]
+dev_tb.dut.rmem05[31:0]
+dev_tb.dut.rmem06[31:0]
+dev_tb.dut.rmem07[31:0]
+dev_tb.dut.rmem08[31:0]
+dev_tb.dut.rmem09[31:0]
+dev_tb.dut.rmem10[31:0]
+dev_tb.dut.rmem11[31:0]
+dev_tb.dut.rmem12[31:0]
+dev_tb.dut.rmem13[31:0]
+dev_tb.dut.rmem14[31:0]
+dev_tb.dut.rmem15[31:0]
+dev_tb.dut.rmem16[31:0]
+dev_tb.dut.rmem17[31:0]
+dev_tb.dut.rmem18[31:0]
+dev_tb.dut.rmem19[31:0]
+dev_tb.dut.rmem20[31:0]
+dev_tb.dut.rmem21[31:0]
+dev_tb.dut.rmem22[31:0]
+dev_tb.dut.rmem23[31:0]
+dev_tb.dut.rmem24[31:0]
+dev_tb.dut.rmem25[31:0]
+dev_tb.dut.rmem26[31:0]
+dev_tb.dut.rmem27[31:0]
+dev_tb.dut.rmem28[31:0]
+dev_tb.dut.rmem29[31:0]
+dev_tb.dut.rmem30[31:0]
+dev_tb.dut.rmem31[31:0]
+@1000200
+-rmem
+[pattern_trace] 1
+[pattern_trace] 0
