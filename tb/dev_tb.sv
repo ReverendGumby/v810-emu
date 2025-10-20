@@ -60,8 +60,6 @@ ram #(10, 32) dmem
    );
 
 initial begin
-    $readmemh("dev_imem.hex", imem.mem);
-
     res = 1;
     ce = 1;
     clk = 1;
@@ -71,18 +69,50 @@ always begin :ckgen
     #0.02 clk = ~clk;
 end
 
-initial #0 begin
+task start_test;
     repeat (4) @(posedge clk) ;
     res <= 0;
+endtask
 
-    #10 $error("Emergency exit!");
+task end_test;
+    @(dut.halt) ;               // wait for HALT instruction
+
+    repeat (6) @(posedge clk) ;
+    res <= 1;
+endtask
+
+initial #0 begin
+    test_mov_rr;
+    test_alu0;
+
+    $display("Done!");
+    $finish();
+end
+
+initial #100 begin
+    $error("Emergency exit!");
     $fatal(1);
 end
 
-always @(dut.halt) begin
-    $display("Decoding HALT instruction");
-    #0.2 $finish;
-end
+task test_mov_rr;
+    imem.load_hex("dev_imem_mov_rr.hex");
+    start_test;
+    end_test;
+
+    for (int i = 1; i < 32; i++)
+        ;//assert(dut.rmem[i] == 32'h0);
+endtask
+
+task test_alu0;
+    imem.load_hex("dev_imem_alu0.hex");
+    start_test;
+    end_test;
+
+    assert(dut.rmem[3] == 32'h1);
+    assert(dut.rmem[5] == 32'h4);
+    assert(dut.rmem[7] == 32'h7);
+    assert(dut.rmem[9] == 32'h11);
+endtask
 
 endmodule
 
@@ -106,9 +136,20 @@ localparam SIZE = 1 << AW;
 bit [DW-1:0]    mem [0:SIZE-1];
 bit [DW-1:0]    dor;
 
-task load(string fn);
+task clear;
+    for (int i = 0; i < SIZE; i++)
+        mem[i] = '0;
+endtask
+
+task load_hex(string fn);
+    clear();
+    $readmemh(fn, mem);
+endtask
+
+task load_bin(string fn);
 integer fin, code;
     begin
+        clear();
         fin = $fopen(fn, "r");
         assert(fin != 0) else $fatal(1, "unable to open file");
         code = $fread(mem, fin, 0, SIZE);
