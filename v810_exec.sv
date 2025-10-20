@@ -26,11 +26,30 @@ module v810_exec
 
 
 //////////////////////////////////////////////////////////////////////
+// Forward declarations
+
+typedef enum bit [3:0] {
+    ALUOP_MOV = 4'b0000,
+    ALUOP_ADD = 4'b0001,
+    ALUOP_SUB = 4'b0010,
+    ALUOP_SHL = 4'b0100,
+    ALUOP_SHR = 4'b0101,
+    ALUOP_SAR = 4'b0111,
+    ALUOP_OR  = 4'b1100,
+    ALUOP_AND = 4'b1101,
+    ALUOP_XOR = 4'b1110,
+    ALUOP_NOT = 4'b1111
+} aluop_t;
+
+event halt;
+
+
+//////////////////////////////////////////////////////////////////////
 // Pipeline registers
 
 typedef struct packed {
     logic RegDst;
-    logic [3:0] ALUOp;          // placeholder
+    logic [3:0] ALUOp;
     logic ALUSrc;
 } ctl_ex_t;
 
@@ -50,6 +69,7 @@ logic [15:0]    ifid_ir;
 
 // ID/EX
 logic [31:0]    idex_pc;
+logic [31:0]    idex_imm;
 logic [31:0]    idex_rf_rd1, idex_rf_rd2;
 logic [4:0]     idex_rf_wa;
 struct packed {
@@ -148,14 +168,22 @@ always @* begin
     id_ctl_wb = '0;
 
     casex (ifid_ir[15:10])
-        6'b0x0_000,             // MOV, ADD
+        6'b0x0_00x,             // MOV, ADD
         6'b000_010,             // SUB
         6'b0x0_10x,             // SHL, SHR
-        6'b001_110,             // XOR
         6'b0x0_111,             // SAR
+        6'b001_10x,             // OR, AND
+        6'b001_110,             // XOR
         6'b001_111:             // NOT
-            id_ctl_wb.RegWrite = '1;
+            begin
+                id_ctl_wb.RegWrite = '1;
+                id_ctl_ex.ALUSrc = ifid_ir[14];
+                id_ctl_ex.ALUOp = ifid_ir[13:10];
+            end
         default: ;
+        6'b011_010:             // HALT
+            // TODO: Emit a halt acknowledge cycle
+            -> halt;
     endcase
 end
 
@@ -213,6 +241,7 @@ assign rmem30 = rmem[30]; assign rmem31 = rmem[31];
 
 always @(posedge CLK) if (CE) begin
     idex_pc <= ifid_pc;
+    idex_imm <= 32'($signed(ifid_ir[4:0]));
     idex_rf_wa <= id_rf_wa;
     idex_ctl.ex <= id_ctl_ex;
     idex_ctl.mem <= id_ctl_mem;
@@ -232,10 +261,39 @@ end
 //////////////////////////////////////////////////////////////////////
 // ALU
 
-logic [31:0] alu_out;
+logic [31:0]    alu_in1, alu_in2;
+logic [31:0]    alu_out;
+aluop_t         alu_op;
+
+assign alu_in1 = idex_ctl.ex.ALUSrc ? idex_imm : idex_rf_rd1;
+assign alu_in2 = idex_rf_rd2;
+assign alu_op = aluop_t'(idex_ctl.ex.ALUOp);
 
 always @* begin
-    alu_out = idex_rf_rd1;
+    case (alu_op)
+        ALUOP_MOV:
+            alu_out = alu_in1;
+        ALUOP_ADD:
+            alu_out = alu_in2 + alu_in1;
+        ALUOP_SUB:
+            alu_out = alu_in2 - alu_in1;
+        ALUOP_SHL:
+            alu_out = alu_in2 << alu_in1;
+        ALUOP_SHR:
+            alu_out = alu_in2 >> alu_in1;
+        ALUOP_SAR:
+            alu_out = alu_in2 >>> alu_in1;
+        ALUOP_OR:
+            alu_out = alu_in1 | alu_in2;
+        ALUOP_AND:
+            alu_out = alu_in1 & alu_in2;
+        ALUOP_XOR:
+            alu_out = alu_in1 ^ alu_in2;
+        ALUOP_NOT:
+            alu_out = ~alu_in1;
+        default:
+            alu_out = 'X;
+    endcase
 end
 
 //////////////////////////////////////////////////////////////////////
@@ -269,6 +327,6 @@ end
 
 assign rf_wa = memwb_rf_wa;
 assign rf_wd = memwb_alu_out;
-assign rf_we = memwb_ctl.wb.RegWrite;
+assign rf_we = memwb_ctl.wb.RegWrite & |rf_wa;
 
 endmodule
