@@ -2,7 +2,7 @@
 
 module dev_tb();
 
-bit             clk, ce;
+bit             clk, ce, res;
 logic [31:0]    ia, da;
 logic [15:0]    dut_id;
 logic [31:0]    dut_dd_i, dut_dd_o;
@@ -17,6 +17,7 @@ end
 
 v810_exec dut
   (
+   .RESn(~res),
    .CLK(clk),
    .CE(ce),
 
@@ -27,13 +28,13 @@ v810_exec dut
    .DD_I(dut_dd_i),
    .DD_O(dut_dd_o),
    .DD_OE(),
-   .BEN(),
+   .BEn(),
 
    .ST(),
-   .DAN(),
-   .MRQN(),
+   .DAn(),
+   .MRQn(),
    .RW(rw),
-   .BCYSTN()
+   .BCYSTn()
    );
 
 ram #(10, 16) imem
@@ -61,6 +62,7 @@ ram #(10, 32) dmem
 initial begin
     $readmemh("dev_imem.hex", imem.mem);
 
+    res = 1;
     ce = 1;
     clk = 1;
 end
@@ -70,6 +72,9 @@ always begin :ckgen
 end
 
 initial #0 begin
+    repeat (4) @(posedge clk) ;
+    res <= 0;
+
     #10 $finish;
 end
 
@@ -105,13 +110,13 @@ integer fin, code;
     end
 endtask
 
-always @(posedge CLK) begin
+always @(negedge CLK) begin
     dor <= mem[A];
 end
 
 assign DO = ~(nCE | nOE) ? dor : {DW{1'bz}};
 
-always @(negedge CLK) begin
+always @(posedge CLK) begin
     if (~(nCE | nWE)) begin
         mem[A] <= DI;
     end
