@@ -4,9 +4,9 @@ module dev_tb();
 
 bit             clk, ce, res;
 logic [31:0]    ia, da;
-logic [15:0]    dut_id;
+logic [31:0]    dut_id;
 logic [31:0]    dut_dd_i, dut_dd_o;
-logic           rw;
+logic           mrqn, rw;
 
 initial begin
     $timeformat(-6, 0, " us", 1);
@@ -27,23 +27,20 @@ v810_exec dut
    .DA(da),
    .DD_I(dut_dd_i),
    .DD_O(dut_dd_o),
-   .DD_OE(),
    .BEn(),
 
    .ST(),
-   .DAn(),
-   .MRQn(),
-   .RW(rw),
-   .BCYSTn()
+   .MRQn(mrqn),
+   .RW(rw)
    );
 
-ram #(10, 16) imem
+ram #(10, 32) imem
   (
    .CLK(clk),
    .nCE('0),
    .nWE(rw),
    .nOE('0),
-   .A(ia[10:1]),
+   .A(ia[11:2]),
    .DI('Z),
    .DO(dut_id)
    );
@@ -51,9 +48,9 @@ ram #(10, 16) imem
 ram #(10, 32) dmem
   (
    .CLK(clk),
-   .nCE('0),
+   .nCE(mrqn),
    .nWE(rw),
-   .nOE('0),
+   .nOE(~rw),
    .A(da[11:2]),
    .DI(dut_dd_o),
    .DO(dut_dd_i)
@@ -72,6 +69,7 @@ end
 task start_test;
     repeat (4) @(posedge clk) ;
     res <= 0;
+    @(posedge clk) ;
 endtask
 
 task end_test;
@@ -84,6 +82,7 @@ endtask
 initial #0 begin
     test_mov_rr;
     test_alu0;
+    test_ldst;
 
     $display("Done!");
     $finish();
@@ -95,7 +94,7 @@ initial #100 begin
 end
 
 task test_mov_rr;
-    imem.load_hex("dev_imem_mov_rr.hex");
+    imem.load_hex16("dev_imem_mov_rr.hex");
     start_test;
     end_test;
 
@@ -104,7 +103,7 @@ task test_mov_rr;
 endtask
 
 task test_alu0;
-    imem.load_hex("dev_imem_alu0.hex");
+    imem.load_hex16("dev_imem_alu0.hex");
     start_test;
     end_test;
 
@@ -112,6 +111,16 @@ task test_alu0;
     assert(dut.rmem[5] == 32'h4);
     assert(dut.rmem[7] == 32'h7);
     assert(dut.rmem[9] == 32'h11);
+endtask
+
+task test_ldst;
+    imem.load_hex16("dev_imem_ldst.hex");
+    dmem.load_hex("dev_dmem_ldst.hex");
+    start_test;
+    end_test;
+
+    assert(dmem.mem[3] == dmem.mem[1]);
+    assert(dmem.mem[4] == dmem.mem[2]);
 endtask
 
 endmodule
@@ -144,6 +153,15 @@ endtask
 task load_hex(string fn);
     clear();
     $readmemh(fn, mem);
+endtask
+
+task load_hex16(string fn);
+bit [15:0] tmp [SIZE * 2];
+    assert(DW / 16 == 2);
+    clear();
+    $readmemh(fn, tmp);
+    for (int i = 0; i < SIZE * 2; i++)
+        mem[i / 2][i[0]*16+:16] = tmp[i];
 endtask
 
 task load_bin(string fn);
