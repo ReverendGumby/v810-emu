@@ -55,7 +55,6 @@ typedef enum bit [1:0] {
 } alu_src2_t;
 
 typedef struct packed {
-    logic RegDst;
     logic [3:0] ALUOp;
     alu_src1_t ALUSrc1;
     alu_src2_t ALUSrc2;
@@ -128,6 +127,7 @@ assign imi_d = ID;
 
 logic           if_pc_inc, if_pc_inc4, if_pc_set;
 logic [31:0]    if_pc_set_val;
+logic           if_pc_en;
 
 logic [31:0]    pc, pci, pcn;
 
@@ -149,7 +149,7 @@ always @(posedge CLK) if (CE) begin
     if (~RESn) begin
         pc <= '0;
     end
-    else begin
+    else if (if_pc_en) begin
         pc <= pcn;
     end
 end
@@ -200,7 +200,7 @@ always @(posedge CLK) if (CE) begin
     if (~RESn) begin
         if_ins32_fetch_hi <= '0;
     end
-    else begin
+    else if (if_pc_en) begin
         if_ins32_fetch_hi <= if_ins32_wrap & ~if_ins32_fetch_hi;
     end
 end
@@ -219,9 +219,13 @@ end
 //////////////////////////////////////////////////////////////////////
 // IF/ID pipeline register
 
+logic           ifid_en;
+
 always @(posedge CLK) if (CE) begin
-    ifid_pc <= pc;
-    ifid_ir <= ir;
+    if (ifid_en) begin
+        ifid_pc <= pc;
+        ifid_ir <= ir;
+    end
 end
 
 
@@ -233,6 +237,7 @@ end
 // Instruction decoder
 
 logic [4:0]     id_rf_ra1, id_rf_ra2, id_rf_wa;
+logic           id_ctl_en;
 ctl_ex_t        id_ctl_ex;
 ctl_mem_t       id_ctl_mem;
 ctl_wb_t        id_ctl_wb;
@@ -299,12 +304,13 @@ end
 assign rf_ra1 = id_rf_ra1;
 assign rf_ra2 = id_rf_ra2;
 
-always @(posedge CLK) if (CE) begin
-    rf_rd1 <= rmem[rf_ra1];
+// Use asynch. logic to ensure that a write will be read in the next clock cycle.
+always @* begin
+    rf_rd1 = rmem[rf_ra1];
 end
 
-always @(posedge CLK) if (CE) begin
-    rf_rd2 <= rmem[rf_ra2];
+always @* begin
+    rf_rd2 = rmem[rf_ra2];
 end
 
 always @(posedge CLK) if (CE) begin
@@ -338,14 +344,11 @@ always @(posedge CLK) if (CE) begin
     idex_imm <= 32'($signed(ifid_ir[4:0]));
     idex_disp16 <= 16'($signed(ifid_ir[31:16]));
     idex_rf_wa <= id_rf_wa;
-    idex_ctl.ex <= id_ctl_ex;
-    idex_ctl.mem <= id_ctl_mem;
-    idex_ctl.wb <= id_ctl_wb;
-end
-
-always @* begin
-    idex_rf_rd1 = rf_rd1;
-    idex_rf_rd2 = rf_rd2;
+    idex_rf_rd1 <= rf_rd1;
+    idex_rf_rd2 <= rf_rd2;
+    idex_ctl.ex <= id_ctl_en ? id_ctl_ex : '0;
+    idex_ctl.mem <= id_ctl_en ? id_ctl_mem : '0;
+    idex_ctl.wb <= id_ctl_en ? id_ctl_wb : '0;
 end
 
 
@@ -453,5 +456,26 @@ end
 assign rf_wa = memwb_rf_wa;
 assign rf_wd = memwb_ctl.wb.MemtoReg ? memwb_mem_rd : memwb_alu_out;
 assign rf_we = memwb_ctl.wb.RegWrite & |rf_wa;
+
+
+//////////////////////////////////////////////////////////////////////
+// Hazard Detection
+//////////////////////////////////////////////////////////////////////
+
+wire haz_data_ex = idex_ctl.wb.RegWrite & |idex_rf_wa &
+     ((idex_rf_wa == rf_ra1) | (idex_rf_wa == rf_ra2));
+
+wire haz_data_mem = exmem_ctl.wb.RegWrite & |exmem_rf_wa &
+     ((exmem_rf_wa == rf_ra1) | (exmem_rf_wa == rf_ra2));
+
+// TODO: Eliminate this hazard by forwarding reg. writes to same-cycle reads.
+wire haz_data_wb = memwb_ctl.wb.RegWrite & |memwb_rf_wa &
+     ((memwb_rf_wa == rf_ra1) | (memwb_rf_wa == rf_ra2));
+
+wire haz_data = haz_data_ex | haz_data_mem | haz_data_wb;
+
+assign if_pc_en = ~haz_data;
+assign ifid_en = ~RESn | ~haz_data;
+assign id_ctl_en = ~RESn | ~haz_data;
 
 endmodule

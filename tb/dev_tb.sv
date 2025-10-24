@@ -67,7 +67,7 @@ always begin :ckgen
 end
 
 task start_test;
-    repeat (4) @(posedge clk) ;
+    repeat (5) @(posedge clk) ;
     res <= 0;
     @(posedge clk) ;
 endtask
@@ -83,6 +83,7 @@ initial #0 begin
     test_mov_rr;
     test_alu0;
     test_ldst;
+    test_data_hazard0;
 
     $display("Done!");
     $finish();
@@ -123,6 +124,16 @@ task test_ldst;
     assert(dmem.mem[4] == dmem.mem[2]);
 endtask
 
+task test_data_hazard0;
+    imem.load_hex16("dev_imem_data_hazard0.hex");
+    start_test;
+    end_test;
+
+    assert(dut.rmem[2] == 32'd10);
+    assert(dut.rmem[5] == 32'd1);
+    assert(dmem.mem[112>>2] == 32'd9);
+endtask
+
 endmodule
 
 //////////////////////////////////////////////////////////////////////
@@ -158,7 +169,8 @@ endtask
 task load_hex16(string fn);
 bit [15:0] tmp [SIZE * 2];
     assert(DW / 16 == 2);
-    clear();
+    for (int i = 0; i < SIZE * 2; i++)
+        tmp[i] = '0;
     $readmemh(fn, tmp);
     for (int i = 0; i < SIZE * 2; i++)
         mem[i / 2][i[0]*16+:16] = tmp[i];

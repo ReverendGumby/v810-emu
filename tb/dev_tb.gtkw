@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Wed Oct 22 07:05:18 2025
+[*] Fri Oct 24 06:01:32 2025
 [*]
 [dumpfile] "/Users/dhunter/src/v810-emu/tb/dev_tb.vcd"
-[dumpfile_mtime] "Wed Oct 22 06:57:21 2025"
-[dumpfile_size] 42536
+[dumpfile_mtime] "Fri Oct 24 06:01:26 2025"
+[dumpfile_size] 60217
 [savefile] "/Users/dhunter/src/v810-emu/tb/dev_tb.gtkw"
-[timestart] 2874800
+[timestart] 6461600
 [size] 1333 600
 [pos] -1 -1
-*-16.677910 3120000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+*-16.774984 6680000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 [markername] AA
 [markername] BB
 [markername] CC
@@ -58,6 +58,7 @@ dev_tb.dut.RW
 @800200
 -if
 @28
+dev_tb.dut.if_pc_en
 dev_tb.dut.if_pc_inc
 dev_tb.dut.if_pc_inc4
 dev_tb.dut.if_pc_set
@@ -72,6 +73,8 @@ dev_tb.dut.ir[31:0]
 -if
 @800200
 -id
+@28
+dev_tb.dut.ifid_en
 @22
 dev_tb.dut.ifid_pc[31:0]
 dev_tb.dut.ifid_ir[31:0]
@@ -121,6 +124,8 @@ dev_tb.dut.rf_wa[4:0]
 dev_tb.dut.rf_wd[31:0]
 @28
 dev_tb.dut.rf_we
+@29
+dev_tb.dut.id_ctl_en
 @1000200
 -id
 @800200
@@ -128,9 +133,7 @@ dev_tb.dut.rf_we
 @22
 dev_tb.dut.idex_pc[31:0]
 dev_tb.dut.idex_imm[31:0]
-@23
 dev_tb.dut.idex_disp16[15:0]
-@22
 dev_tb.dut.idex_rf_rd1[31:0]
 dev_tb.dut.idex_rf_rd2[31:0]
 dev_tb.dut.idex_rf_wa[4:0]
@@ -156,5 +159,14 @@ dev_tb.dut.memwb_mem_rd[31:0]
 dev_tb.dut.memwb_rf_wa[4:0]
 @1000200
 -wb
+@800200
+-hazard
+@28
+dev_tb.dut.haz_data_ex
+dev_tb.dut.haz_data_mem
+dev_tb.dut.haz_data_wb
+dev_tb.dut.haz_data
+@1000200
+-hazard
 [pattern_trace] 1
 [pattern_trace] 0
