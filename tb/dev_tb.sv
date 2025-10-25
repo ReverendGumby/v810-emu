@@ -84,6 +84,7 @@ initial #0 begin
     test_alu0;
     test_ldst;
     test_data_hazard0;
+    test_bcond0;
 
     $display("Done!");
     $finish();
@@ -132,6 +133,14 @@ task test_data_hazard0;
     assert(dut.rmem[2] == 32'd10);
     assert(dut.rmem[5] == 32'd1);
     assert(dmem.mem[112>>2] == 32'd9);
+endtask
+
+task test_bcond0;
+    imem.load_hex16("dev_imem_bcond0.hex");
+    start_test;
+    end_test;
+
+    assert(dut.rmem[1] == 32'd0);
 endtask
 
 endmodule

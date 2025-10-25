@@ -1,0 +1,29 @@
+@0
+
+4020 // MOV #0, r1
+9A00 // NOP
+9A00 // NOP
+9A00 // NOP
+
+4021 // MOV #1, r1
+9A08 // NOP (.+8)
+4020 // MOV #0, r1
+9A00 // NOP
+9A00 // NOP
+
+8A10 // BR .+16
+4021 // MOV #1, r1
+4022 // MOV #2, r1
+4023 // MOV #3, r1
+4024 // MOV #4, r1
+4025 // MOV #5, r1
+4026 // MOV #6, r1
+4027 // MOV #7, r1
+
+
+
+9A00 // NOP
+
+// Test a data hazard with a branch taken
+
+6800 // HALT

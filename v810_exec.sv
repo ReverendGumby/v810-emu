@@ -38,6 +38,13 @@ typedef enum bit [3:0] {
     ALUOP_NOT = 4'b1111
 } aluop_t;
 
+typedef struct packed {
+    logic Zero;
+    logic Sign;
+    logic Over;
+    logic Carry;
+} aluflags_t;
+
 event halt;
 
 
@@ -46,12 +53,14 @@ event halt;
 
 typedef enum bit [1:0] {
     ALUSRC1_RF_RD1 = 2'd0,
-    ALUSRC1_IMM5
+    ALUSRC1_IMM5,
+    ALUSRC1_PC
 } alu_src1_t;
 
 typedef enum bit [1:0] {
     ALUSRC2_RF_RD2 = 2'd0,
-    ALUSRC2_DISP16
+    ALUSRC2_DISP16,
+    ALUSRC2_DISP9
 } alu_src2_t;
 
 typedef struct packed {
@@ -62,6 +71,7 @@ typedef struct packed {
 
 typedef struct packed {
     logic Branch;
+    logic [3:0] Bcond;
     logic MemRead;
     logic MemWrite;
 } ctl_mem_t;
@@ -78,7 +88,8 @@ logic [31:0]    ifid_ir;
 // ID/EX
 logic [31:0]    idex_pc;
 logic [31:0]    idex_imm;
-logic [15:0]    idex_disp16;
+logic [31:0]    idex_disp9;
+logic [31:0]    idex_disp16;
 logic [31:0]    idex_rf_rd1, idex_rf_rd2;
 logic [4:0]     idex_rf_wa;
 struct packed {
@@ -91,6 +102,7 @@ struct packed {
 logic [4:0]     exmem_rf_wa;
 logic [31:0]    exmem_rf_rd2;
 logic [31:0]    exmem_alu_out;
+aluflags_t      exmem_alu_fl;
 struct packed {
     ctl_mem_t   mem;
     ctl_wb_t    wb;
@@ -112,6 +124,7 @@ struct packed {
 logic           if_ins32;
 logic           if_ins32_wrap;
 logic           if_ins32_fetch_hi;
+logic           if_flush;
 
 //////////////////////////////////////////////////////////////////////
 // Instruction memory interface
@@ -139,10 +152,10 @@ end
 
 always @* begin
     pcn = pc;
-    if (if_pc_inc)
-        pcn = pci;
-    else if (if_pc_set)
+    if (if_pc_set)
         pcn = if_pc_set_val;
+    else if (if_pc_inc)
+        pcn = pci;
 end
 
 always @(posedge CLK) if (CE) begin
@@ -214,6 +227,8 @@ always @* begin
     ir = pd;
     if (~if_pc_inc)
         ir = {ir[15:0], 16'h9A00}; // save LO in IF/ID reg
+    if (if_flush)
+        ir = 16'h9A00;
 end
 
 //////////////////////////////////////////////////////////////////////
@@ -222,7 +237,7 @@ end
 logic           ifid_en;
 
 always @(posedge CLK) if (CE) begin
-    if (ifid_en) begin
+    if (~RESn | ifid_en) begin
         ifid_pc <= pc;
         ifid_ir <= ir;
     end
@@ -237,16 +252,14 @@ end
 // Instruction decoder
 
 logic [4:0]     id_rf_ra1, id_rf_ra2, id_rf_wa;
-logic           id_ctl_en;
 ctl_ex_t        id_ctl_ex;
 ctl_mem_t       id_ctl_mem;
 ctl_wb_t        id_ctl_wb;
 
-assign id_rf_ra1 = ifid_ir[4:0];
-assign id_rf_ra2 = ifid_ir[9:5];
-assign id_rf_wa = ifid_ir[9:5];
-
 always @* begin
+    id_rf_ra1 = '0;
+    id_rf_ra2 = '0;
+    id_rf_wa = '0;
     id_ctl_ex = '0;
     id_ctl_mem = '0;
     id_ctl_wb = '0;
@@ -260,16 +273,33 @@ always @* begin
         6'b001_110,             // XOR
         6'b001_111:             // NOT
             begin
+                if (~(~ifid_ir[15] &
+                      ((ifid_ir[14:10] == 5'b01111) // NOT
+                       | (ifid_ir[13:10] == 4'b0000)))) // MOV
+                    id_rf_ra2 = ifid_ir[9:5];
+                id_rf_wa = ifid_ir[9:5];
                 if (ifid_ir[14])
                     id_ctl_ex.ALUSrc1 = ALUSRC1_IMM5;
+                else
+                    id_rf_ra1 = ifid_ir[4:0];
                 id_ctl_ex.ALUOp = ifid_ir[13:10];
                 id_ctl_wb.RegWrite = '1;
             end
         6'b011_010:             // HALT
             // TODO: Emit a halt acknowledge cycle
             -> halt;
+        6'b100_xxx:             // Bcond (branch)
+            begin
+                id_ctl_ex.ALUSrc1 = ALUSRC1_PC;
+                id_ctl_ex.ALUSrc2 = ALUSRC2_DISP9;
+                id_ctl_ex.ALUOp = ALUOP_ADD;
+                id_ctl_mem.Branch = '1;
+                id_ctl_mem.Bcond = ifid_ir[12:9];
+            end
         6'b110_0xx:             // LD
             begin
+                id_rf_ra1 = ifid_ir[4:0];
+                id_rf_wa = ifid_ir[9:5];
                 id_ctl_ex.ALUSrc2 = ALUSRC2_DISP16;
                 id_ctl_ex.ALUOp = ALUOP_ADD;
                 id_ctl_mem.MemRead = '1;
@@ -278,6 +308,8 @@ always @* begin
             end
         6'b110_1xx:             // ST
             begin
+                id_rf_ra1 = ifid_ir[4:0];
+                id_rf_ra2 = ifid_ir[9:5];
                 id_ctl_ex.ALUSrc2 = ALUSRC2_DISP16;
                 id_ctl_ex.ALUOp = ALUOP_ADD;
                 id_ctl_mem.MemWrite = '1;
@@ -339,16 +371,22 @@ assign rmem30 = rmem[30]; assign rmem31 = rmem[31];
 //////////////////////////////////////////////////////////////////////
 // ID/EX pipeline register
 
+logic           id_ctl_en;
+logic           id_flush;
+
+wire idex_ctl_zero = RESn & (~id_ctl_en | id_flush);
+
 always @(posedge CLK) if (CE) begin
     idex_pc <= ifid_pc;
     idex_imm <= 32'($signed(ifid_ir[4:0]));
-    idex_disp16 <= 16'($signed(ifid_ir[31:16]));
+    idex_disp9 <= 32'($signed(ifid_ir[8:0]));
+    idex_disp16 <= 32'($signed(ifid_ir[31:16]));
     idex_rf_wa <= id_rf_wa;
     idex_rf_rd1 <= rf_rd1;
     idex_rf_rd2 <= rf_rd2;
-    idex_ctl.ex <= id_ctl_en ? id_ctl_ex : '0;
-    idex_ctl.mem <= id_ctl_en ? id_ctl_mem : '0;
-    idex_ctl.wb <= id_ctl_en ? id_ctl_wb : '0;
+    idex_ctl.ex <= idex_ctl_zero ? '0 : id_ctl_ex;
+    idex_ctl.mem <= idex_ctl_zero ? '0 : id_ctl_mem;
+    idex_ctl.wb <= idex_ctl_zero ? '0 : id_ctl_wb;
 end
 
 
@@ -362,12 +400,14 @@ end
 logic [31:0]    alu_in1, alu_in2;
 logic [31:0]    alu_out;
 aluop_t         alu_op;
+aluflags_t      alu_fl;
 
 always @* begin
     alu_in1 = 'X;
     case (idex_ctl.ex.ALUSrc1)
         ALUSRC1_RF_RD1: alu_in1 = idex_rf_rd1;
         ALUSRC1_IMM5:   alu_in1 = idex_imm;
+        ALUSRC1_PC:     alu_in1 = idex_pc;
         default: ;
     endcase
 end
@@ -377,6 +417,7 @@ always @* begin
     case (idex_ctl.ex.ALUSrc2)
         ALUSRC2_RF_RD2: alu_in2 = idex_rf_rd2;
         ALUSRC2_DISP16: alu_in2 = idex_disp16;
+        ALUSRC2_DISP9:  alu_in2 = idex_disp9;
         default: ;
     endcase
 end
@@ -384,13 +425,14 @@ end
 assign alu_op = aluop_t'(idex_ctl.ex.ALUOp);
 
 always @* begin
+    alu_fl = '0;
     case (alu_op)
         ALUOP_MOV:
             alu_out = alu_in1;
         ALUOP_ADD:
-            alu_out = alu_in2 + alu_in1;
+            {alu_fl.Carry, alu_out} = alu_in2 + alu_in1;
         ALUOP_SUB:
-            alu_out = alu_in2 - alu_in1;
+            {alu_fl.Carry, alu_out} = alu_in2 - alu_in1;
         ALUOP_SHL:
             alu_out = alu_in2 << alu_in1;
         ALUOP_SHR:
@@ -408,17 +450,24 @@ always @* begin
         default:
             alu_out = 'X;
     endcase
+    alu_fl.Zero = ~|alu_out;
+    alu_fl.Sign = alu_out[31];
 end
 
 //////////////////////////////////////////////////////////////////////
 // EX/MEM pipeline register
 
+logic           ex_flush;
+
+wire exmem_ctl_flush = RESn & (ex_flush);
+
 always @(posedge CLK) if (CE) begin
     exmem_rf_wa <= idex_rf_wa;
     exmem_rf_rd2 <= idex_rf_rd2;
     exmem_alu_out <= alu_out;
-    exmem_ctl.mem <= idex_ctl.mem;
-    exmem_ctl.wb <= idex_ctl.wb;
+    exmem_alu_fl <= alu_fl;
+    exmem_ctl.mem <= exmem_ctl_flush ? '0 : idex_ctl.mem;
+    exmem_ctl.wb <= exmem_ctl_flush ? '0 : idex_ctl.wb;
 end
 
 
@@ -427,9 +476,40 @@ end
 //////////////////////////////////////////////////////////////////////
 
 logic [31:0]    mem_di;
+logic           mem_bcond_match;
 
-assign if_pc_set = '0;
+// Branch condition test
+always @* begin
+    case (exmem_ctl.mem.Bcond[2:0])
+        3'b000:                // Overflow
+            mem_bcond_match = exmem_alu_fl.Over;
+        3'b001:                // Carry / Lower
+            mem_bcond_match = exmem_alu_fl.Carry;
+        3'b010:                // Zero / Equal
+            mem_bcond_match = exmem_alu_fl.Zero;
+        3'b011:                // Not higher
+            mem_bcond_match = (exmem_alu_fl.Carry | exmem_alu_fl.Zero);
+        3'b100:                // Negative
+            mem_bcond_match = exmem_alu_fl.Sign;
+        3'b101:                // Always
+            mem_bcond_match = '1; 
+        3'b110:                // Less than signed
+            mem_bcond_match = (exmem_alu_fl.Sign ^ exmem_alu_fl.Over);
+        3'b111:                // Less than or equal signed
+            mem_bcond_match = ((exmem_alu_fl.Sign ^ exmem_alu_fl.Over)
+                               | exmem_alu_fl.Zero);
+    endcase
+    // MSB inverts the test.
+    mem_bcond_match ^= exmem_ctl.mem.Bcond[3];
+end
+
+// On branch taken, set PC and flush pipeline before MEM.
+wire mem_branch_taken = exmem_ctl.mem.Branch & mem_bcond_match;
+assign if_pc_set = mem_branch_taken;
 assign if_pc_set_val = exmem_alu_out;
+assign if_flush = mem_branch_taken;
+assign id_flush = mem_branch_taken;
+assign ex_flush = mem_branch_taken;
 
 assign DA = exmem_alu_out;
 assign mem_di = DD_I;
@@ -475,7 +555,7 @@ wire haz_data_wb = memwb_ctl.wb.RegWrite & |memwb_rf_wa &
 wire haz_data = haz_data_ex | haz_data_mem | haz_data_wb;
 
 assign if_pc_en = ~haz_data;
-assign ifid_en = ~RESn | ~haz_data;
-assign id_ctl_en = ~RESn | ~haz_data;
+assign ifid_en = ~haz_data;
+assign id_ctl_en = ~haz_data;
 
 endmodule
