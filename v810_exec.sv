@@ -45,9 +45,17 @@ typedef struct packed {
     logic Zero;
 } aluflags_t;
 
-aluflags_t          psw;    // TODO: More flags to come
+wor             if_stall, if_flush;
+wor             id_flush;
+wor             ex_flush;
 
 event halt;
+
+
+//////////////////////////////////////////////////////////////////////
+// System Registers
+
+aluflags_t      psw;    // TODO: More flags to come
 
 
 //////////////////////////////////////////////////////////////////////
@@ -127,7 +135,6 @@ struct packed {
 logic           if_ins32;
 logic           if_ins32_wrap;
 logic           if_ins32_fetch_hi;
-logic           if_flush;
 
 //////////////////////////////////////////////////////////////////////
 // Instruction memory interface
@@ -143,7 +150,6 @@ assign imi_d = ID;
 
 logic           if_pc_inc, if_pc_inc4, if_pc_set;
 logic [31:0]    if_pc_set_val;
-logic           if_pc_en;
 
 logic [31:0]    pc, pci, pcn;
 
@@ -165,7 +171,7 @@ always @(posedge CLK) if (CE) begin
     if (~RESn) begin
         pc <= '0;
     end
-    else if (if_pc_en) begin
+    else if (~if_stall) begin
         pc <= pcn;
     end
 end
@@ -216,7 +222,7 @@ always @(posedge CLK) if (CE) begin
     if (~RESn) begin
         if_ins32_fetch_hi <= '0;
     end
-    else if (if_pc_en) begin
+    else if (~if_stall) begin
         if_ins32_fetch_hi <= if_ins32_wrap & ~if_ins32_fetch_hi;
     end
 end
@@ -237,10 +243,8 @@ end
 //////////////////////////////////////////////////////////////////////
 // IF/ID pipeline register
 
-logic           ifid_en;
-
 always @(posedge CLK) if (CE) begin
-    if (~RESn | ifid_en) begin
+    if (~RESn | ~if_stall) begin
         ifid_pc <= pc;
         ifid_ir <= ir;
     end
@@ -384,10 +388,7 @@ assign rmem30 = rmem[30]; assign rmem31 = rmem[31];
 //////////////////////////////////////////////////////////////////////
 // ID/EX pipeline register
 
-logic           id_ctl_en;
-logic           id_flush;
-
-wire idex_ctl_zero = RESn & (~id_ctl_en | id_flush);
+wire idex_ctl_zero = RESn & (id_flush);
 
 always @(posedge CLK) if (CE) begin
     idex_pc <= ifid_pc;
@@ -406,6 +407,8 @@ end
 //////////////////////////////////////////////////////////////////////
 // EX - Execute / address calculation
 //////////////////////////////////////////////////////////////////////
+
+assign ex_flush = '0;
 
 //////////////////////////////////////////////////////////////////////
 // ALU
@@ -501,20 +504,17 @@ always @* begin
     bcond_match ^= idex_ctl.ex.Bcond[3];
 end
 
-// On branch taken, set PC and flush pipeline before MEM.
+// On branch taken, set PC and flush pipeline before EX.
 wire branch_taken = idex_ctl.ex.Branch & bcond_match;
 assign if_pc_set = branch_taken;
 assign if_pc_set_val = alu_out;
 assign if_flush = branch_taken;
 assign id_flush = branch_taken;
-//assign ex_flush = branch_taken;
 
 //////////////////////////////////////////////////////////////////////
 // EX/MEM pipeline register
 
-logic           ex_flush;
-
-wire exmem_ctl_flush = '0;//RESn & (ex_flush);
+wire exmem_ctl_flush = RESn & (ex_flush);
 
 always @(posedge CLK) if (CE) begin
     exmem_rf_wa <= idex_rf_wa;
@@ -590,8 +590,7 @@ wire haz_flag_ex = |idex_ctl.mem.FlagMask & id_ctl_ex.Branch;
 
 wire haz_flag = haz_flag_ex;
 
-assign if_pc_en = ~(haz_data | haz_flag);
-assign ifid_en = ~(haz_data | haz_flag);
-assign id_ctl_en = ~(haz_data | haz_flag);
+assign if_stall = (haz_data | haz_flag);
+assign id_flush = (haz_data | haz_flag);
 
 endmodule
