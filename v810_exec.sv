@@ -75,21 +75,21 @@ typedef enum bit [1:0] {
 
 typedef struct packed {
     logic [3:0] ALUOp;
-    alu_src1_t ALUSrc1;
-    alu_src2_t ALUSrc2;
-    logic Branch;
+    alu_src1_t  ALUSrc1;
+    alu_src2_t  ALUSrc2;
+    logic       Branch;
     logic [3:0] Bcond;
 } ctl_ex_t;
 
 typedef struct packed {
-    logic MemRead;
-    logic MemWrite;
+    logic       MemRead;
+    logic       MemWrite;
     logic [3:0] FlagMask;
-} ctl_mem_t;
+} ctl_ma_t;
 
 typedef struct packed {
-    logic RegWrite;
-    logic MemtoReg;
+    logic       RegWrite;
+    logic       MemtoReg;
 } ctl_wb_t;
 
 // IF/ID
@@ -105,27 +105,27 @@ logic [31:0]    idex_rf_rd1, idex_rf_rd2;
 logic [4:0]     idex_rf_wa;
 struct packed {
     ctl_ex_t    ex;
-    ctl_mem_t   mem;
+    ctl_ma_t    ma;
     ctl_wb_t    wb;
 } idex_ctl;
 
-// EX/MEM
-logic [4:0]     exmem_rf_wa;
-logic [31:0]    exmem_rf_rd2;
-logic [31:0]    exmem_alu_out;
-aluflags_t      exmem_alu_fl;
+// EX/MA
+logic [4:0]     exma_rf_wa;
+logic [31:0]    exma_rf_rd2;
+logic [31:0]    exma_alu_out;
+aluflags_t      exma_alu_fl;
 struct packed {
-    ctl_mem_t   mem;
+    ctl_ma_t    ma;
     ctl_wb_t    wb;
-} exmem_ctl;
+} exma_ctl;
 
-// MEM/WB
-logic [4:0]     memwb_rf_wa;
-logic [31:0]    memwb_alu_out;
-logic [31:0]    memwb_mem_rd;
+// MA/WB
+logic [4:0]     mawb_rf_wa;
+logic [31:0]    mawb_alu_out;
+logic [31:0]    mawb_mem_rd;
 struct packed {
     ctl_wb_t    wb;
-} memwb_ctl;
+} mawb_ctl;
 
 
 //////////////////////////////////////////////////////////////////////
@@ -260,7 +260,7 @@ end
 
 logic [4:0]     id_rf_ra1, id_rf_ra2, id_rf_wa;
 ctl_ex_t        id_ctl_ex;
-ctl_mem_t       id_ctl_mem;
+ctl_ma_t        id_ctl_ma;
 ctl_wb_t        id_ctl_wb;
 
 always @* begin
@@ -268,7 +268,7 @@ always @* begin
     id_rf_ra2 = '0;
     id_rf_wa = '0;
     id_ctl_ex = '0;
-    id_ctl_mem = '0;
+    id_ctl_ma = '0;
     id_ctl_wb = '0;
 
     casex (ifid_ir[15:10])
@@ -300,7 +300,7 @@ always @* begin
                 else
                     id_rf_ra1 = ifid_ir[4:0];
                 id_ctl_ex.ALUOp = ALUOP_SUB;
-                id_ctl_mem.FlagMask = '1;
+                id_ctl_ma.FlagMask = '1;
             end
         6'b011_010:             // HALT
             // TODO: Emit a halt acknowledge cycle
@@ -319,7 +319,7 @@ always @* begin
                 id_rf_wa = ifid_ir[9:5];
                 id_ctl_ex.ALUSrc2 = ALUSRC2_DISP16;
                 id_ctl_ex.ALUOp = ALUOP_ADD;
-                id_ctl_mem.MemRead = '1;
+                id_ctl_ma.MemRead = '1;
                 id_ctl_wb.MemtoReg = '1;
                 id_ctl_wb.RegWrite = '1;
             end
@@ -329,7 +329,7 @@ always @* begin
                 id_rf_ra2 = ifid_ir[9:5];
                 id_ctl_ex.ALUSrc2 = ALUSRC2_DISP16;
                 id_ctl_ex.ALUOp = ALUOP_ADD;
-                id_ctl_mem.MemWrite = '1;
+                id_ctl_ma.MemWrite = '1;
             end
         default: ;
     endcase
@@ -399,7 +399,7 @@ always @(posedge CLK) if (CE) begin
     idex_rf_rd1 <= rf_rd1;
     idex_rf_rd2 <= rf_rd2;
     idex_ctl.ex <= idex_ctl_zero ? '0 : id_ctl_ex;
-    idex_ctl.mem <= idex_ctl_zero ? '0 : id_ctl_mem;
+    idex_ctl.ma <= idex_ctl_zero ? '0 : id_ctl_ma;
     idex_ctl.wb <= idex_ctl_zero ? '0 : id_ctl_wb;
 end
 
@@ -512,49 +512,49 @@ assign if_flush = branch_taken;
 assign id_flush = branch_taken;
 
 //////////////////////////////////////////////////////////////////////
-// EX/MEM pipeline register
+// EX/MA pipeline register
 
-wire exmem_ctl_flush = RESn & (ex_flush);
+wire exma_ctl_flush = RESn & (ex_flush);
 
 always @(posedge CLK) if (CE) begin
-    exmem_rf_wa <= idex_rf_wa;
-    exmem_rf_rd2 <= idex_rf_rd2;
-    exmem_alu_out <= alu_out;
-    exmem_alu_fl <= alu_fl;
-    exmem_ctl.mem <= exmem_ctl_flush ? '0 : idex_ctl.mem;
-    exmem_ctl.wb <= exmem_ctl_flush ? '0 : idex_ctl.wb;
+    exma_rf_wa <= idex_rf_wa;
+    exma_rf_rd2 <= idex_rf_rd2;
+    exma_alu_out <= alu_out;
+    exma_alu_fl <= alu_fl;
+    exma_ctl.ma <= exma_ctl_flush ? '0 : idex_ctl.ma;
+    exma_ctl.wb <= exma_ctl_flush ? '0 : idex_ctl.wb;
 end
 
 
 //////////////////////////////////////////////////////////////////////
-// MEM - Memory access
+// MA - Memory Access
 //////////////////////////////////////////////////////////////////////
 
-logic [31:0]    mem_di;
+logic [31:0]    ma_di;
 
-assign DA = exmem_alu_out;
-assign mem_di = DD_I;
-assign DD_O = exmem_rf_rd2;
+assign DA = exma_alu_out;
+assign ma_di = DD_I;
+assign DD_O = exma_rf_rd2;
 
-assign MRQn = ~(exmem_ctl.mem.MemRead | exmem_ctl.mem.MemWrite);
-assign RW = MRQn | exmem_ctl.mem.MemRead;
+assign MRQn = ~(exma_ctl.ma.MemRead | exma_ctl.ma.MemWrite);
+assign RW = MRQn | exma_ctl.ma.MemRead;
 
 always @(posedge CLK) if (CE) begin
     if (~RESn)
         psw <= '0;
     else
-        psw <= (psw & ~exmem_ctl.mem.FlagMask) |
-               (exmem_alu_fl & exmem_ctl.mem.FlagMask);
+        psw <= (psw & ~exma_ctl.ma.FlagMask) |
+               (exma_alu_fl & exma_ctl.ma.FlagMask);
 end
 
 //////////////////////////////////////////////////////////////////////
-// MEM/WB pipeline register
+// MA/WB pipeline register
 
 always @(posedge CLK) if (CE) begin
-    memwb_rf_wa <= exmem_rf_wa;
-    memwb_alu_out <= exmem_alu_out;
-    memwb_mem_rd <= mem_di;
-    memwb_ctl.wb <= exmem_ctl.wb;
+    mawb_rf_wa <= exma_rf_wa;
+    mawb_alu_out <= exma_alu_out;
+    mawb_mem_rd <= ma_di;
+    mawb_ctl.wb <= exma_ctl.wb;
 end
 
 
@@ -562,9 +562,9 @@ end
 // WB - Write back
 //////////////////////////////////////////////////////////////////////
 
-assign rf_wa = memwb_rf_wa;
-assign rf_wd = memwb_ctl.wb.MemtoReg ? memwb_mem_rd : memwb_alu_out;
-assign rf_we = memwb_ctl.wb.RegWrite & |rf_wa;
+assign rf_wa = mawb_rf_wa;
+assign rf_wd = mawb_ctl.wb.MemtoReg ? mawb_mem_rd : mawb_alu_out;
+assign rf_we = mawb_ctl.wb.RegWrite & |rf_wa;
 
 
 //////////////////////////////////////////////////////////////////////
@@ -575,18 +575,18 @@ assign rf_we = memwb_ctl.wb.RegWrite & |rf_wa;
 wire haz_data_ex = idex_ctl.wb.RegWrite & |idex_rf_wa &
      ((idex_rf_wa == rf_ra1) | (idex_rf_wa == rf_ra2));
 
-wire haz_data_mem = exmem_ctl.wb.RegWrite & |exmem_rf_wa &
-     ((exmem_rf_wa == rf_ra1) | (exmem_rf_wa == rf_ra2));
+wire haz_data_ma = exma_ctl.wb.RegWrite & |exma_rf_wa &
+     ((exma_rf_wa == rf_ra1) | (exma_rf_wa == rf_ra2));
 
 // TODO: Eliminate this hazard by forwarding reg. writes to same-cycle reads.
-wire haz_data_wb = memwb_ctl.wb.RegWrite & |memwb_rf_wa &
-     ((memwb_rf_wa == rf_ra1) | (memwb_rf_wa == rf_ra2));
+wire haz_data_wb = mawb_ctl.wb.RegWrite & |mawb_rf_wa &
+     ((mawb_rf_wa == rf_ra1) | (mawb_rf_wa == rf_ra2));
 
-wire haz_data = haz_data_ex | haz_data_mem | haz_data_wb;
+wire haz_data = haz_data_ex | haz_data_ma | haz_data_wb;
 
 // Flag Hazard
 // TODO: Add SETF
-wire haz_flag_ex = |idex_ctl.mem.FlagMask & id_ctl_ex.Branch;
+wire haz_flag_ex = |idex_ctl.ma.FlagMask & id_ctl_ex.Branch;
 
 wire haz_flag = haz_flag_ex;
 
