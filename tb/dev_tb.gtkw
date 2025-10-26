@@ -133,9 +133,7 @@ dev_tb.dut.rf_we
 dev_tb.dut.ex_flush
 @22
 dev_tb.dut.idex_pc[31:0]
-dev_tb.dut.idex_imm[31:0]
-dev_tb.dut.idex_disp9[31:0]
-dev_tb.dut.idex_disp16[31:0]
+dev_tb.dut.idex_ir[31:0]
 dev_tb.dut.idex_rf_rd1[31:0]
 dev_tb.dut.idex_rf_rd2[31:0]
 dev_tb.dut.idex_rf_wa[4:0]

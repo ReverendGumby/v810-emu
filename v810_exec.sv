@@ -99,9 +99,7 @@ logic [31:0]    ifid_ir;
 
 // ID/EX
 logic [31:0]    idex_pc;
-logic [31:0]    idex_imm;
-logic [31:0]    idex_disp9;
-logic [31:0]    idex_disp16;
+logic [31:0]    idex_ir;
 logic [31:0]    idex_rf_rd1, idex_rf_rd2;
 logic [4:0]     idex_rf_wa;
 struct packed {
@@ -402,9 +400,7 @@ wire idex_ctl_zero = RESn & (id_flush);
 
 always @(posedge CLK) if (CE) begin
     idex_pc <= ifid_pc;
-    idex_imm <= 32'($signed(ifid_ir[4:0]));
-    idex_disp9 <= 32'($signed(ifid_ir[8:0]));
-    idex_disp16 <= 32'($signed(ifid_ir[31:16]));
+    idex_ir <= ifid_ir;
     idex_rf_wa <= id_rf_wa;
     idex_rf_rd1 <= rf_rd1;
     idex_rf_rd2 <= rf_rd2;
@@ -419,6 +415,10 @@ end
 //////////////////////////////////////////////////////////////////////
 
 logic           bcond_match;
+
+wire [31:0]     idex_imm = 32'($signed(idex_ir[4:0]));
+wire [31:0]     idex_disp9 = 32'($signed(idex_ir[8:0]));
+wire [31:0]     idex_disp16 = 32'($signed(idex_ir[31:16]));
 
 assign ex_flush = '0;
 
