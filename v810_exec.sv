@@ -39,11 +39,13 @@ typedef enum bit [3:0] {
 } aluop_t;
 
 typedef struct packed {
-    logic Zero;
-    logic Sign;
-    logic Over;
     logic Carry;
+    logic Over;
+    logic Sign;
+    logic Zero;
 } aluflags_t;
+
+aluflags_t          psw;    // TODO: More flags to come
 
 event halt;
 
@@ -67,13 +69,14 @@ typedef struct packed {
     logic [3:0] ALUOp;
     alu_src1_t ALUSrc1;
     alu_src2_t ALUSrc2;
+    logic Branch;
+    logic [3:0] Bcond;
 } ctl_ex_t;
 
 typedef struct packed {
-    logic Branch;
-    logic [3:0] Bcond;
     logic MemRead;
     logic MemWrite;
+    logic [3:0] FlagMask;
 } ctl_mem_t;
 
 typedef struct packed {
@@ -285,6 +288,16 @@ always @* begin
                 id_ctl_ex.ALUOp = ifid_ir[13:10];
                 id_ctl_wb.RegWrite = '1;
             end
+        6'b0x0_011:             // CMP
+            begin
+                id_rf_ra2 = ifid_ir[9:5];
+                if (ifid_ir[14])
+                    id_ctl_ex.ALUSrc1 = ALUSRC1_IMM5;
+                else
+                    id_rf_ra1 = ifid_ir[4:0];
+                id_ctl_ex.ALUOp = ALUOP_SUB;
+                id_ctl_mem.FlagMask = '1;
+            end
         6'b011_010:             // HALT
             // TODO: Emit a halt acknowledge cycle
             -> halt;
@@ -293,8 +306,8 @@ always @* begin
                 id_ctl_ex.ALUSrc1 = ALUSRC1_PC;
                 id_ctl_ex.ALUSrc2 = ALUSRC2_DISP9;
                 id_ctl_ex.ALUOp = ALUOP_ADD;
-                id_ctl_mem.Branch = '1;
-                id_ctl_mem.Bcond = ifid_ir[12:9];
+                id_ctl_ex.Branch = '1;
+                id_ctl_ex.Bcond = ifid_ir[12:9];
             end
         6'b110_0xx:             // LD
             begin
@@ -429,10 +442,16 @@ always @* begin
     case (alu_op)
         ALUOP_MOV:
             alu_out = alu_in1;
-        ALUOP_ADD:
+        ALUOP_ADD: begin
             {alu_fl.Carry, alu_out} = alu_in2 + alu_in1;
-        ALUOP_SUB:
+            alu_fl.Over = (alu_in1[31] == alu_in2[31])
+                & (alu_in2[31] != alu_out[31]);
+        end
+        ALUOP_SUB: begin
             {alu_fl.Carry, alu_out} = alu_in2 - alu_in1;
+            alu_fl.Over = (alu_in1[31] != alu_in2[31])
+                & (alu_in2[31] != alu_out[31]);
+        end
         ALUOP_SHL:
             alu_out = alu_in2 << alu_in1;
         ALUOP_SHR:
@@ -455,11 +474,47 @@ always @* begin
 end
 
 //////////////////////////////////////////////////////////////////////
+// Branch condition test
+
+logic           bcond_match;
+
+always @* begin
+    case (idex_ctl.ex.Bcond[2:0])
+        3'b000:                // Overflow
+            bcond_match = psw.Over;
+        3'b001:                // Carry / Lower
+            bcond_match = psw.Carry;
+        3'b010:                // Zero / Equal
+            bcond_match = psw.Zero;
+        3'b011:                // Not higher
+            bcond_match = psw.Carry | psw.Zero;
+        3'b100:                // Negative
+            bcond_match = psw.Sign;
+        3'b101:                // Always
+            bcond_match = '1; 
+        3'b110:                // Less than signed
+            bcond_match = psw.Sign ^ psw.Over;
+        3'b111:                // Less than or equal signed
+            bcond_match = (psw.Sign ^ psw.Over) | psw.Zero;
+    endcase
+    // MSB inverts the test.
+    bcond_match ^= idex_ctl.ex.Bcond[3];
+end
+
+// On branch taken, set PC and flush pipeline before MEM.
+wire branch_taken = idex_ctl.ex.Branch & bcond_match;
+assign if_pc_set = branch_taken;
+assign if_pc_set_val = alu_out;
+assign if_flush = branch_taken;
+assign id_flush = branch_taken;
+//assign ex_flush = branch_taken;
+
+//////////////////////////////////////////////////////////////////////
 // EX/MEM pipeline register
 
 logic           ex_flush;
 
-wire exmem_ctl_flush = RESn & (ex_flush);
+wire exmem_ctl_flush = '0;//RESn & (ex_flush);
 
 always @(posedge CLK) if (CE) begin
     exmem_rf_wa <= idex_rf_wa;
@@ -476,40 +531,6 @@ end
 //////////////////////////////////////////////////////////////////////
 
 logic [31:0]    mem_di;
-logic           mem_bcond_match;
-
-// Branch condition test
-always @* begin
-    case (exmem_ctl.mem.Bcond[2:0])
-        3'b000:                // Overflow
-            mem_bcond_match = exmem_alu_fl.Over;
-        3'b001:                // Carry / Lower
-            mem_bcond_match = exmem_alu_fl.Carry;
-        3'b010:                // Zero / Equal
-            mem_bcond_match = exmem_alu_fl.Zero;
-        3'b011:                // Not higher
-            mem_bcond_match = (exmem_alu_fl.Carry | exmem_alu_fl.Zero);
-        3'b100:                // Negative
-            mem_bcond_match = exmem_alu_fl.Sign;
-        3'b101:                // Always
-            mem_bcond_match = '1; 
-        3'b110:                // Less than signed
-            mem_bcond_match = (exmem_alu_fl.Sign ^ exmem_alu_fl.Over);
-        3'b111:                // Less than or equal signed
-            mem_bcond_match = ((exmem_alu_fl.Sign ^ exmem_alu_fl.Over)
-                               | exmem_alu_fl.Zero);
-    endcase
-    // MSB inverts the test.
-    mem_bcond_match ^= exmem_ctl.mem.Bcond[3];
-end
-
-// On branch taken, set PC and flush pipeline before MEM.
-wire mem_branch_taken = exmem_ctl.mem.Branch & mem_bcond_match;
-assign if_pc_set = mem_branch_taken;
-assign if_pc_set_val = exmem_alu_out;
-assign if_flush = mem_branch_taken;
-assign id_flush = mem_branch_taken;
-assign ex_flush = mem_branch_taken;
 
 assign DA = exmem_alu_out;
 assign mem_di = DD_I;
@@ -517,6 +538,14 @@ assign DD_O = exmem_rf_rd2;
 
 assign MRQn = ~(exmem_ctl.mem.MemRead | exmem_ctl.mem.MemWrite);
 assign RW = MRQn | exmem_ctl.mem.MemRead;
+
+always @(posedge CLK) if (CE) begin
+    if (~RESn)
+        psw <= '0;
+    else
+        psw <= (psw & ~exmem_ctl.mem.FlagMask) |
+               (exmem_alu_fl & exmem_ctl.mem.FlagMask);
+end
 
 //////////////////////////////////////////////////////////////////////
 // MEM/WB pipeline register
@@ -542,6 +571,7 @@ assign rf_we = memwb_ctl.wb.RegWrite & |rf_wa;
 // Hazard Detection
 //////////////////////////////////////////////////////////////////////
 
+// Data / Register Hazard
 wire haz_data_ex = idex_ctl.wb.RegWrite & |idex_rf_wa &
      ((idex_rf_wa == rf_ra1) | (idex_rf_wa == rf_ra2));
 
@@ -554,8 +584,14 @@ wire haz_data_wb = memwb_ctl.wb.RegWrite & |memwb_rf_wa &
 
 wire haz_data = haz_data_ex | haz_data_mem | haz_data_wb;
 
-assign if_pc_en = ~haz_data;
-assign ifid_en = ~haz_data;
-assign id_ctl_en = ~haz_data;
+// Flag Hazard
+// TODO: Add SETF
+wire haz_flag_ex = |idex_ctl.mem.FlagMask & id_ctl_ex.Branch;
+
+wire haz_flag = haz_flag_ex;
+
+assign if_pc_en = ~(haz_data | haz_flag);
+assign ifid_en = ~(haz_data | haz_flag);
+assign id_ctl_en = ~(haz_data | haz_flag);
 
 endmodule

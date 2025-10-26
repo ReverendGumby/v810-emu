@@ -1,0 +1,69 @@
+
+Pipeline timing for [3] interlock examples
+------------------------------------------
+
+Given:
+- There is no register or flag forwarding
+- Flags are generated in MA
+- Decision to branch is made in EX
+
+Register Hazard code, left side -- 545ms = 13 cycles/loop
+
+   Clock cyle              0  1  2  3  4  5  6  7  8  9  10 11 12 13 ..
+    movea 1000, r0, r10    IF ID EX MA WB
+    st.b  r0, [r10]           IF       ID EX MA WB
+    mov   1, r11                       IF ID EX MA WB
+    add   r11, r12                        IF       ID EX MA WB
+    add   -1, r20                                  IF ID EX MA WB
+    bnz   LABEL                                       IF ID    EX MA WB
+    ...                                                  IF    ID
+    ...                                                        IF
+    movea 1000, r0, r10                                           IF ID ..
+
+Register Hazard code, right side -- 461ms = 11 cycles/loop
+
+   Clock cyle              0  1  2  3  4  5  6  7  8  9  10 11 ..
+    movea 1000, r0, r10    IF ID EX MA WB
+    mov   1, r11              IF ID EX MA WB
+    add   r11, r12               IF       ID EX MA WB
+    st.b  r0, [r10]                       IF ID EX MA WB
+    add   -1, r20                            IF ID EX MA WB
+    bnz   LABEL                                 IF ID    EX MA WB
+    ...                                            IF    ID
+    ...                                                  IF
+    movea 1000, r0, r10                                     IF ID ..
+
+Flag Hazard code, left side -- 377ms = 9 cycles/loop *
+
+   Clock cyle              0  1  2  3  4  5  6  7  8  9  ..
+    st.b  r0, [r10]        IF ID EX MA WB
+    add   1, r10              IF ID EX MA WB
+    add   -1, r20                IF ID EX MA WB
+    bnz   LABEL                     IF ID    EX MA WB
+    ...                                IF    ID
+    ...                                      IF
+    st.b  r0, [r10]                                   IF ID ..
+
+Flag Hazard code, right side -- 335ms = 8 cycles/loop *
+
+   Clock cyle              0  1  2  3  4  5  6  7  8  ..
+    st.b  r0, [r10]        IF ID EX MA WB
+    add   -1, r20             IF ID EX MA WB
+    movea 1, r10, r10            IF ID EX MA WB
+    bnz   LABEL                     IF ID EX MA WB
+    ...                                IF ID
+    ...                                   IF
+    st.b  r0, [r10]                                IF ID ..
+
+* TODO: There's another 2 cycle delay coming from somewhere.
+
+
+======================================================================
+
+
+References
+----------
+[1] V810 Family User's Manual Architecture
+[2] V810 Family User's Manual Hardware
+[3] v810-seminar-slides-1-introduction-architecture-tips.pdf
+[4] v810-seminar-slides-2-v810-programming.pdf

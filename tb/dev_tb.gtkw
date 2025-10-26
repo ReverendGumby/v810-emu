@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Sat Oct 25 04:14:48 2025
+[*] Sun Oct 26 06:32:32 2025
 [*]
 [dumpfile] "/Users/dhunter/src/v810-emu/tb/dev_tb.vcd"
-[dumpfile_mtime] "Sat Oct 25 04:03:40 2025"
-[dumpfile_size] 72452
+[dumpfile_mtime] "Sun Oct 26 06:14:11 2025"
+[dumpfile_size] 90011
 [savefile] "/Users/dhunter/src/v810-emu/tb/dev_tb.gtkw"
-[timestart] 9053400
+[timestart] 10265900
 [size] 1333 600
 [pos] -1 -1
-*-16.774984 9280000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+*-16.774984 10280000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 [markername] AA
 [markername] BB
 [markername] CC
@@ -139,15 +139,18 @@ dev_tb.dut.idex_disp9[31:0]
 dev_tb.dut.idex_disp16[31:0]
 dev_tb.dut.idex_rf_rd1[31:0]
 dev_tb.dut.idex_rf_rd2[31:0]
-dev_tb.dut.idex_ctl[16:0]
 dev_tb.dut.idex_rf_wa[4:0]
+dev_tb.dut.idex_ctl[20:0]
 dev_tb.dut.alu_in1[31:0]
 dev_tb.dut.alu_in2[31:0]
 dev_tb.dut.alu_op[3:0]
 dev_tb.dut.alu_out[31:0]
 @28
 dev_tb.dut.alu_fl[3:0]
-dev_tb.dut.ex_flush
+@22
+dev_tb.dut.bcond_match
+@29
+dev_tb.dut.branch_taken
 @1000200
 -ex
 @800200
@@ -157,23 +160,9 @@ dev_tb.dut.exmem_rf_wa[4:0]
 dev_tb.dut.exmem_alu_out[31:0]
 @28
 dev_tb.dut.exmem_alu_fl[3:0]
-@c00022
-dev_tb.dut.exmem_ctl[8:0]
-@28
-(0)dev_tb.dut.exmem_ctl[8:0]
-(1)dev_tb.dut.exmem_ctl[8:0]
-(2)dev_tb.dut.exmem_ctl[8:0]
-(3)dev_tb.dut.exmem_ctl[8:0]
-(4)dev_tb.dut.exmem_ctl[8:0]
-(5)dev_tb.dut.exmem_ctl[8:0]
-(6)dev_tb.dut.exmem_ctl[8:0]
-(7)dev_tb.dut.exmem_ctl[8:0]
-(8)dev_tb.dut.exmem_ctl[8:0]
-@1401200
--group_end
-@28
-dev_tb.dut.mem_bcond_match
-@23
+@22
+dev_tb.dut.exmem_ctl[7:0]
+dev_tb.dut.psw[3:0]
 dev_tb.dut.mem_di[31:0]
 @1000200
 -mem
@@ -194,6 +183,8 @@ dev_tb.dut.haz_data_ex
 dev_tb.dut.haz_data_mem
 dev_tb.dut.haz_data_wb
 dev_tb.dut.haz_data
+dev_tb.dut.haz_flag_ex
+dev_tb.dut.haz_flag
 @1000200
 -hazard
 [pattern_trace] 1
