@@ -179,7 +179,7 @@ logic [31:0]    pd;
 
 always @* begin
     if (~RESn) begin
-        pd = 16'h9A00;          // NOP
+        pd = '0;
     end
     else begin
         pd = imi_d;
@@ -229,9 +229,9 @@ logic [31:0]    ir;
 always @* begin
     ir = pd;
     if (~if_pc_inc)
-        ir = {ir[15:0], 16'h9A00}; // save LO in IF/ID reg
+        ir = {ir[15:0], 16'h0}; // save LO in IF/ID reg
     if (if_flush)
-        ir = 16'h9A00;
+        ir = '0;
 end
 
 //////////////////////////////////////////////////////////////////////
