@@ -1,0 +1,28 @@
+@0
+
+4021 // MOV #1, r1
+4040 // MOV #0, r2
+407E // MOV #-2, r3
+409F // MOV #-1, r4
+9A00 // NOP
+9A00 // NOP
+9A00 // NOP
+
+00A3 // MOV r3, r5
+48A5 // SETF T, r5
+38A1 // XOR r1, r5
+3045 // OR r5, r2
+
+00A4 // MOV r4, r5
+48AD // SETF F, r5
+3045 // OR r5, r2
+
+411F // MOV #-1, r8
+5501 // SHR #1, r8
+00A3 // MOV r3, r5
+4D1F // CMP #-1, r8
+48A0 // SETF V, r5
+38A1 // XOR r1, r5
+3045 // OR r5, r2
+
+6800 // HALT

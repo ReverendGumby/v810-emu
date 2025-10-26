@@ -64,7 +64,8 @@ aluflags_t      psw;    // TODO: More flags to come
 typedef enum bit [1:0] {
     ALUSRC1_RF_RD1 = 2'd0,
     ALUSRC1_IMM5,
-    ALUSRC1_PC
+    ALUSRC1_PC,
+    ALUSRC1_BMATCH
 } alu_src1_t;
 
 typedef enum bit [1:0] {
@@ -291,6 +292,7 @@ always @* begin
                     id_rf_ra1 = ifid_ir[4:0];
                 id_ctl_ex.ALUOp = ifid_ir[13:10];
                 id_ctl_wb.RegWrite = '1;
+                // TODO: Set FlagMask
             end
         6'b0x0_011:             // CMP
             begin
@@ -301,6 +303,14 @@ always @* begin
                     id_rf_ra1 = ifid_ir[4:0];
                 id_ctl_ex.ALUOp = ALUOP_SUB;
                 id_ctl_ma.FlagMask = '1;
+            end
+        6'b010_010:             // SETF
+            begin
+                id_rf_wa = ifid_ir[9:5];
+                id_ctl_ex.ALUSrc1 = ALUSRC1_BMATCH;
+                id_ctl_ex.ALUOp = ALUOP_MOV;
+                id_ctl_ex.Bcond = ifid_ir[3:0];
+                id_ctl_wb.RegWrite = '1;
             end
         6'b011_010:             // HALT
             // TODO: Emit a halt acknowledge cycle
@@ -408,6 +418,8 @@ end
 // EX - Execute / address calculation
 //////////////////////////////////////////////////////////////////////
 
+logic           bcond_match;
+
 assign ex_flush = '0;
 
 //////////////////////////////////////////////////////////////////////
@@ -424,6 +436,7 @@ always @* begin
         ALUSRC1_RF_RD1: alu_in1 = idex_rf_rd1;
         ALUSRC1_IMM5:   alu_in1 = idex_imm;
         ALUSRC1_PC:     alu_in1 = idex_pc;
+        ALUSRC1_BMATCH: alu_in1 = {31'b0, bcond_match};
         default: ;
     endcase
 end
@@ -478,8 +491,6 @@ end
 
 //////////////////////////////////////////////////////////////////////
 // Branch condition test
-
-logic           bcond_match;
 
 always @* begin
     case (idex_ctl.ex.Bcond[2:0])
@@ -585,8 +596,9 @@ wire haz_data_wb = mawb_ctl.wb.RegWrite & |mawb_rf_wa &
 wire haz_data = haz_data_ex | haz_data_ma | haz_data_wb;
 
 // Flag Hazard
-// TODO: Add SETF
-wire haz_flag_ex = |idex_ctl.ma.FlagMask & id_ctl_ex.Branch;
+wire haz_bcond = id_ctl_ex.Branch & (id_ctl_ex.Bcond[2:0] != 3'b101);
+wire haz_setf = id_ctl_ex.ALUSrc1 == ALUSRC1_BMATCH;
+wire haz_flag_ex = |idex_ctl.ma.FlagMask & (haz_bcond | haz_setf);
 
 wire haz_flag = haz_flag_ex;
 
