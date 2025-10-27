@@ -88,6 +88,7 @@ initial #0 begin
     test_setf;
     test_jmp_jr_jal;
     test_alu1;
+    test_alu2;
 
     $display("Done!");
     $finish();
@@ -135,6 +136,14 @@ task test_alu1;
     assert(dut.rmem[12] == 32'h7);
     assert(dut.rmem[13] == 32'h1F);
     assert(dut.rmem[14] == 32'hE);
+endtask
+
+task test_alu2;
+    imem.load_hex16("dev_imem_alu2.hex");
+    start_test;
+    end_test;
+
+    assert(dut.rmem[15] == 32'h0);
 endtask
 
 task test_ldst;

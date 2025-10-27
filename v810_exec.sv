@@ -100,18 +100,19 @@ typedef enum bit [2:0] {
 } alu_src2_t;
 
 typedef struct packed {
+    logic       Extend; // ins. has multiple EX cycles
     logic [3:0] ALUOp;
     alu_src1_t  ALUSrc1;
     alu_src2_t  ALUSrc2;
     logic       Branch;
     logic [3:0] Bcond;
-    logic       Extend; // ins. has multiple EX cycles
+    logic       Halt; // TODO: there's gotta be a better way
 } ctl_ex_t;
 
 typedef struct packed {
     logic       MemRead;
     logic       MemWrite;
-    logic [3:0] FlagMask;
+    aluflags_t  FlagMask;
 } ctl_ma_t;
 
 typedef struct packed {
@@ -319,7 +320,11 @@ always @* begin
                     id_rf_ra1 = ifid_ir[4:0];
                 id_ctl_ex.ALUOp = ifid_ir[13:10];
                 id_ctl_wb.RegWrite = '1;
-                // TODO: Set FlagMask
+                if (id_ctl_ex.ALUOp != ALUOP_MOV) begin
+                    id_ctl_ma.FlagMask = '1;
+                    id_ctl_ma.FlagMask.Carry = (id_ctl_ex.ALUOp == ALUOP_ADD)
+                        | (id_ctl_ex.ALUOp == ALUOP_SUB);
+                end
             end
         6'b000_110:             // JMP
             begin
@@ -347,8 +352,7 @@ always @* begin
                 id_ctl_wb.RegWrite = '1;
             end
         6'b011_010:             // HALT
-            // TODO: Emit a halt acknowledge cycle
-            -> halt;
+            id_ctl_ex.Halt = '1;
         6'b100_xxx:             // Bcond (branch)
             begin
                 id_ctl_ex.ALUSrc1 = ALUSRC1_PC;
@@ -365,7 +369,8 @@ always @* begin
                 id_ctl_ex.ALUSrc2 = ALUSRC2_IMM16;
                 id_ctl_ex.ALUOp = ALUOP_ADD;
                 id_ctl_wb.RegWrite = '1;
-                // TODO: Set FlagMask if ADDI
+                if (ifid_ir[10]) // ADDI
+                    id_ctl_ma.FlagMask = '1;
             end
         6'b101_10x,             // ORI, ANDI
         6'b101_110:             // XORI
@@ -375,7 +380,8 @@ always @* begin
                 id_ctl_ex.ALUSrc2 = ALUSRC2_IMM16;
                 id_ctl_ex.ALUOp = ifid_ir[13:10];
                 id_ctl_wb.RegWrite = '1;
-                // TODO: Set FlagMask
+                id_ctl_ma.FlagMask = '1;
+                id_ctl_ma.FlagMask.Carry = '0;
             end
         6'b101_010:             // JR
             begin
@@ -581,11 +587,11 @@ always @* begin
                 & (alu_in2[31] != alu_out[31]);
         end
         ALUOP_SHL:
-            alu_out = alu_in2 << alu_in1;
+            {alu_fl.Carry, alu_out} = 33'(alu_in2) << alu_in1;
         ALUOP_SHR:
-            alu_out = alu_in2 >> alu_in1;
+            {alu_out, alu_fl.Carry} = {alu_in2, 1'b0} >> alu_in1;
         ALUOP_SAR:
-            alu_out = alu_in2 >>> alu_in1;
+            {alu_out, alu_fl.Carry} = $signed({alu_in2, 1'b0}) >>> alu_in1;
         ALUOP_OR:
             alu_out = alu_in1 | alu_in2;
         ALUOP_AND:
@@ -635,6 +641,17 @@ assign if_pc_set = branch_taken;
 assign if_pc_set_val = alu_out;
 assign if_flush = branch_taken;
 assign id_flush = branch_taken & ~branch_no_id_flush;
+
+//////////////////////////////////////////////////////////////////////
+// Special stuff
+
+always @(posedge CLK) if (CE) begin
+    if (idex_ctl.ex.Halt) begin
+        // TODO: Emit a halt acknowledge cycle
+        -> halt;
+    end
+end
+
 
 //////////////////////////////////////////////////////////////////////
 // EX/MA pipeline register

@@ -1,0 +1,52 @@
+@0
+
+41FF // MOV #-1, r15
+
+4020 // MOV #0, r1
+4420 // ADD #0, r1      CY=0 OV=0 S=0 Z=1
+9206 // BNC .+6
+41E1 // MOV #1, r15
+6800 // HALT
+81FC // BV .-4
+89FA // BN .-6
+95F8 // BNZ .-8
+
+4020 // MOV #0, r1
+443F // ADD #-1, r1     CY=0 OV=0 S=1 Z=0
+9206 // BNC .+6
+41E2 // MOV #2, r15
+6800 // HALT
+81FC // BV .-4
+99FA // BP .-6
+85F8 // BZ .-8
+
+4020 // MOV #0, r1
+4421 // ADD #1, r1     CY=0 OV=0 S=0 Z=0
+9206 // BNC .+6
+41E3 // MOV #3, r15
+6800 // HALT
+81FC // BV .-4
+89FA // BN .-6
+85F8 // BZ .-8
+
+403F // MOV #-1, r1
+4421 // ADD #1, r1     CY=1 OV=0 S=0 Z=1
+8206 // BC .+6
+41E4 // MOV #4, r15
+6800 // HALT
+81FC // BV .-4
+89FA // BN .-6
+95F8 // BNZ .-8
+
+403F // MOV #-1, r1
+5421 // SHR #1, r1
+4421 // ADD #1, r1     CY=0 OV=1 S=1 Z=0
+9206 // BNC .+6
+41E5 // MOV #5, r15
+6800 // HALT
+91FC // BNV .-4
+99FA // BP .-6
+85F8 // BZ .-8
+
+41E0 // MOV #0, r15
+6800 // HALT
