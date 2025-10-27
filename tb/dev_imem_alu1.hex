@@ -1,0 +1,18 @@
+@0
+4021 // MOV #1, r1
+4042 // MOV #2, r2
+4063 // MOV #3, r3
+4084 // MOV #4, r4
+40a5 // MOV #5, r5
+40c6 // MOV #6, r6
+40e7 // MOV #7, r7
+4108 // MOV #8, r8
+4129 // MOV #9, r9
+
+BD47 000F // MOVHI #15, r7, r10
+A568 FFF9 // ADDI #-7, r8, r11
+B587 00FF // ANDI #255, r7, r12
+B1A7 0018 // ORI #24, r7, r13
+B9C1 000F // XORI #15, r1, r14
+
+6800 // HALT

@@ -86,6 +86,8 @@ initial #0 begin
     test_data_hazard0;
     test_bcond0;
     test_setf;
+    test_jmp_jr_jal;
+    test_alu1;
 
     $display("Done!");
     $finish();
@@ -94,6 +96,13 @@ end
 initial #100 begin
     $error("Emergency exit!");
     $fatal(1);
+end
+
+always @ia begin
+    if (ia[0]) begin
+        $error("Invalid instruction address!");
+        $fatal(1);
+    end
 end
 
 task test_mov_rr;
@@ -114,6 +123,18 @@ task test_alu0;
     assert(dut.rmem[5] == 32'h4);
     assert(dut.rmem[7] == 32'h7);
     assert(dut.rmem[9] == 32'h11);
+endtask
+
+task test_alu1;
+    imem.load_hex16("dev_imem_alu1.hex");
+    start_test;
+    end_test;
+
+    assert(dut.rmem[10] == 32'hF0007);
+    assert(dut.rmem[11] == 32'h1);
+    assert(dut.rmem[12] == 32'h7);
+    assert(dut.rmem[13] == 32'h1F);
+    assert(dut.rmem[14] == 32'hE);
 endtask
 
 task test_ldst;
@@ -150,6 +171,14 @@ task test_setf;
     end_test;
 
     assert(dut.rmem[2] == 32'd0);
+endtask
+
+task test_jmp_jr_jal;
+    imem.load_hex16("dev_imem_jmp_jr_jal.hex");
+    start_test;
+    end_test;
+
+    assert(dut.rmem[2] == 32'h5);
 endtask
 
 endmodule

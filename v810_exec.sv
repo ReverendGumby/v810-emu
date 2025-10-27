@@ -1,5 +1,16 @@
 `timescale 1us / 1ns
 
+// Instruction execution unit
+
+// TODO: These instructions:
+// - MUL(U), DIV(U)
+// - TRAP, RETI, HALT
+// - Bit string manipulation (Bstr)
+// - LDSR, STSR
+// - Floating-point operation (Fpp)
+// - IN, OUT
+// - CAXI
+
 module v810_exec
   (
    input         RESn,
@@ -24,6 +35,17 @@ module v810_exec
 
 //////////////////////////////////////////////////////////////////////
 // Forward declarations
+
+typedef enum bit [2:0] {
+    BCOND_V   = 3'b000,
+    BCOND_C   = 3'b001,
+    BCOND_Z   = 3'b010,
+    BCOND_NH  = 3'b011,
+    BCOND_S   = 3'b100,
+    BCOND_T   = 3'b101,
+    BCOND_LT  = 3'b110,
+    BCOND_LTE = 3'b111
+} bcond_t;
 
 typedef enum bit [3:0] {
     ALUOP_MOV = 4'b0000,
@@ -68,10 +90,13 @@ typedef enum bit [1:0] {
     ALUSRC1_BMATCH
 } alu_src1_t;
 
-typedef enum bit [1:0] {
-    ALUSRC2_RF_RD2 = 2'd0,
-    ALUSRC2_DISP16,
-    ALUSRC2_DISP9
+typedef enum bit [2:0] {
+    ALUSRC2_RF_RD2 = 3'd0,
+    ALUSRC2_DISP9,
+    ALUSRC2_IMM16,
+    ALUSRC2_IMM16_HI,
+    ALUSRC2_DISP26,
+    ALUSRC2_CONST_4
 } alu_src2_t;
 
 typedef struct packed {
@@ -80,6 +105,7 @@ typedef struct packed {
     alu_src2_t  ALUSrc2;
     logic       Branch;
     logic [3:0] Bcond;
+    logic       Extend; // ins. has multiple EX cycles
 } ctl_ex_t;
 
 typedef struct packed {
@@ -164,6 +190,8 @@ always @* begin
         pcn = if_pc_set_val;
     else if (if_pc_inc)
         pcn = pci;
+
+    pcn[0] = '0; // PC[0] shall never be set.
 end
 
 always @(posedge CLK) if (CE) begin
@@ -261,6 +289,7 @@ logic [4:0]     id_rf_ra1, id_rf_ra2, id_rf_wa;
 ctl_ex_t        id_ctl_ex;
 ctl_ma_t        id_ctl_ma;
 ctl_wb_t        id_ctl_wb;
+logic [5:0]     id_ccnt;
 
 always @* begin
     id_rf_ra1 = '0;
@@ -292,6 +321,13 @@ always @* begin
                 id_ctl_wb.RegWrite = '1;
                 // TODO: Set FlagMask
             end
+        6'b000_110:             // JMP
+            begin
+                id_rf_ra1 = ifid_ir[4:0];
+                id_ctl_ex.ALUOp = ALUOP_MOV;
+                id_ctl_ex.Branch = '1;
+                id_ctl_ex.Bcond[2:0] = BCOND_T;
+            end
         6'b0x0_011:             // CMP
             begin
                 id_rf_ra2 = ifid_ir[9:5];
@@ -321,11 +357,65 @@ always @* begin
                 id_ctl_ex.Branch = '1;
                 id_ctl_ex.Bcond = ifid_ir[12:9];
             end
+        6'b101_000,             // MOVEA
+        6'b101_001:             // ADDI
+            begin
+                id_rf_ra1 = ifid_ir[4:0];
+                id_rf_wa = ifid_ir[9:5];
+                id_ctl_ex.ALUSrc2 = ALUSRC2_IMM16;
+                id_ctl_ex.ALUOp = ALUOP_ADD;
+                id_ctl_wb.RegWrite = '1;
+                // TODO: Set FlagMask if ADDI
+            end
+        6'b101_10x,             // ORI, ANDI
+        6'b101_110:             // XORI
+            begin
+                id_rf_ra1 = ifid_ir[4:0];
+                id_rf_wa = ifid_ir[9:5];
+                id_ctl_ex.ALUSrc2 = ALUSRC2_IMM16;
+                id_ctl_ex.ALUOp = ifid_ir[13:10];
+                id_ctl_wb.RegWrite = '1;
+                // TODO: Set FlagMask
+            end
+        6'b101_010:             // JR
+            begin
+                id_ctl_ex.ALUSrc1 = ALUSRC1_PC;
+                id_ctl_ex.ALUSrc2 = ALUSRC2_DISP26;
+                id_ctl_ex.ALUOp = ALUOP_ADD;
+                id_ctl_ex.Branch = '1;
+                id_ctl_ex.Bcond[2:0] = BCOND_T;
+            end
+        6'b101_011:             // JAL
+            begin
+                if (id_ccnt == 'd0) begin
+                    id_ctl_ex.ALUSrc1 = ALUSRC1_PC;
+                    id_ctl_ex.ALUSrc2 = ALUSRC2_DISP26;
+                    id_ctl_ex.ALUOp = ALUOP_ADD;
+                    id_ctl_ex.Branch = '1;
+                    id_ctl_ex.Bcond[2:0] = BCOND_T;
+                    id_ctl_ex.Extend = '1;
+                end
+                else if (id_ccnt == 'd1) begin
+                    id_rf_wa = 5'd31;
+                    id_ctl_ex.ALUSrc1 = ALUSRC1_PC;
+                    id_ctl_ex.ALUSrc2 = ALUSRC2_CONST_4;
+                    id_ctl_ex.ALUOp = ALUOP_ADD;
+                    id_ctl_wb.RegWrite = '1;
+                end
+            end
+        6'b101_111:             // MOVHI
+            begin
+                id_rf_ra1 = ifid_ir[4:0];
+                id_rf_wa = ifid_ir[9:5];
+                id_ctl_ex.ALUSrc2 = ALUSRC2_IMM16_HI;
+                id_ctl_ex.ALUOp = ALUOP_ADD;
+                id_ctl_wb.RegWrite = '1;
+            end
         6'b110_0xx:             // LD
             begin
                 id_rf_ra1 = ifid_ir[4:0];
                 id_rf_wa = ifid_ir[9:5];
-                id_ctl_ex.ALUSrc2 = ALUSRC2_DISP16;
+                id_ctl_ex.ALUSrc2 = ALUSRC2_IMM16;
                 id_ctl_ex.ALUOp = ALUOP_ADD;
                 id_ctl_ma.MemRead = '1;
                 id_ctl_wb.MemtoReg = '1;
@@ -335,13 +425,25 @@ always @* begin
             begin
                 id_rf_ra1 = ifid_ir[4:0];
                 id_rf_ra2 = ifid_ir[9:5];
-                id_ctl_ex.ALUSrc2 = ALUSRC2_DISP16;
+                id_ctl_ex.ALUSrc2 = ALUSRC2_IMM16;
                 id_ctl_ex.ALUOp = ALUOP_ADD;
                 id_ctl_ma.MemWrite = '1;
             end
         default: ;
     endcase
+    if (id_rf_wa == '0)
+        id_ctl_wb.RegWrite = '0; // no point in trying
 end
+
+// Handle ins. with multiple EX cycles
+always @(posedge CLK) if (CE) begin
+    if (~RESn | ~id_ctl_ex.Extend)
+        id_ccnt <= '0;
+    else
+        id_ccnt <= id_ccnt + 1'd1;
+end
+
+assign if_stall = id_ctl_ex.Extend;
 
 //////////////////////////////////////////////////////////////////////
 // Register file
@@ -416,10 +518,6 @@ end
 
 logic           bcond_match;
 
-wire [31:0]     idex_imm = 32'($signed(idex_ir[4:0]));
-wire [31:0]     idex_disp9 = 32'($signed(idex_ir[8:0]));
-wire [31:0]     idex_disp16 = 32'($signed(idex_ir[31:16]));
-
 assign ex_flush = '0;
 
 //////////////////////////////////////////////////////////////////////
@@ -430,11 +528,22 @@ logic [31:0]    alu_out;
 aluop_t         alu_op;
 aluflags_t      alu_fl;
 
+wire            alu_se = (alu_op < ALUOP_SHL);
+
+wire [4:0]      idex_imm5 = idex_ir[4:0];
+wire [15:0]     idex_imm16 = idex_ir[31:16];
+
+wire [31:0]     idex_disp9 = 32'($signed(idex_ir[8:0]));
+wire [31:0]     idex_imm5_ext = alu_se ? 32'($signed(idex_imm5)) : 32'(idex_imm5);
+wire [31:0]     idex_imm16_hi = {idex_ir[31:16], 16'b0};
+wire [31:0]     idex_imm16_ext = alu_se ? 32'($signed(idex_imm16)) : 32'(idex_imm16);
+wire [31:0]     idex_disp26 = 32'($signed({idex_ir[9:0], idex_ir[31:16]}));
+
 always @* begin
     alu_in1 = 'X;
     case (idex_ctl.ex.ALUSrc1)
         ALUSRC1_RF_RD1: alu_in1 = idex_rf_rd1;
-        ALUSRC1_IMM5:   alu_in1 = idex_imm;
+        ALUSRC1_IMM5:   alu_in1 = idex_imm5_ext;
         ALUSRC1_PC:     alu_in1 = idex_pc;
         ALUSRC1_BMATCH: alu_in1 = {31'b0, bcond_match};
         default: ;
@@ -444,9 +553,12 @@ end
 always @* begin
     alu_in2 = 'X;
     case (idex_ctl.ex.ALUSrc2)
-        ALUSRC2_RF_RD2: alu_in2 = idex_rf_rd2;
-        ALUSRC2_DISP16: alu_in2 = idex_disp16;
-        ALUSRC2_DISP9:  alu_in2 = idex_disp9;
+        ALUSRC2_RF_RD2:     alu_in2 = idex_rf_rd2;
+        ALUSRC2_DISP9:      alu_in2 = idex_disp9;
+        ALUSRC2_IMM16:      alu_in2 = idex_imm16_ext;
+        ALUSRC2_IMM16_HI:   alu_in2 = idex_imm16_hi;
+        ALUSRC2_DISP26:     alu_in2 = idex_disp26;
+        ALUSRC2_CONST_4:    alu_in2 = 32'd4;
         default: ;
     endcase
 end
@@ -494,21 +606,21 @@ end
 
 always @* begin
     case (idex_ctl.ex.Bcond[2:0])
-        3'b000:                // Overflow
+        BCOND_V:               // Overflow
             bcond_match = psw.Over;
-        3'b001:                // Carry / Lower
+        BCOND_C:               // Carry / Lower
             bcond_match = psw.Carry;
-        3'b010:                // Zero / Equal
+        BCOND_Z:               // Zero / Equal
             bcond_match = psw.Zero;
-        3'b011:                // Not higher
+        BCOND_NH:              // Not higher
             bcond_match = psw.Carry | psw.Zero;
-        3'b100:                // Negative
+        BCOND_S:               // Negative
             bcond_match = psw.Sign;
-        3'b101:                // Always
+        BCOND_T:               // Always
             bcond_match = '1; 
-        3'b110:                // Less than signed
+        BCOND_LT:              // Less than signed
             bcond_match = psw.Sign ^ psw.Over;
-        3'b111:                // Less than or equal signed
+        BCOND_LTE:             // Less than or equal signed
             bcond_match = (psw.Sign ^ psw.Over) | psw.Zero;
     endcase
     // MSB inverts the test.
@@ -517,10 +629,12 @@ end
 
 // On branch taken, set PC and flush pipeline before EX.
 wire branch_taken = idex_ctl.ex.Branch & bcond_match;
+// For JAL: EX-1 takes branch, EX-2 computes r31. So, don't flush ID on branch.
+wire branch_no_id_flush = idex_ctl.ex.Extend;
 assign if_pc_set = branch_taken;
 assign if_pc_set_val = alu_out;
 assign if_flush = branch_taken;
-assign id_flush = branch_taken;
+assign id_flush = branch_taken & ~branch_no_id_flush;
 
 //////////////////////////////////////////////////////////////////////
 // EX/MA pipeline register
@@ -596,13 +710,13 @@ wire haz_data_wb = mawb_ctl.wb.RegWrite & |mawb_rf_wa &
 wire haz_data = haz_data_ex | haz_data_ma | haz_data_wb;
 
 // Flag Hazard
-wire haz_bcond = id_ctl_ex.Branch & (id_ctl_ex.Bcond[2:0] != 3'b101);
+wire haz_bcond = id_ctl_ex.Branch & (id_ctl_ex.Bcond[2:0] != BCOND_T);
 wire haz_setf = id_ctl_ex.ALUSrc1 == ALUSRC1_BMATCH;
 wire haz_flag_ex = |idex_ctl.ma.FlagMask & (haz_bcond | haz_setf);
 
 wire haz_flag = haz_flag_ex;
 
-assign if_stall = (haz_data | haz_flag);
+assign if_stall = (haz_data | haz_flag) & ~branch_taken;
 assign id_flush = (haz_data | haz_flag);
 
 endmodule
