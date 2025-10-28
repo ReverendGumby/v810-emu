@@ -469,13 +469,19 @@ end
 assign rf_ra1 = id_rf_ra1;
 assign rf_ra2 = id_rf_ra2;
 
-// Use asynch. logic to ensure that a write will be read in the next clock cycle.
+// Use asynch. logic to forward writes to the read ports.
 always @* begin
-    rf_rd1 = rmem[rf_ra1];
+    if (rf_we & (rf_ra1 == rf_wa))
+        rf_rd1 = rf_wd;
+    else
+        rf_rd1 = rmem[rf_ra1];
 end
 
 always @* begin
-    rf_rd2 = rmem[rf_ra2];
+    if (rf_we & (rf_ra2 == rf_wa))
+        rf_rd2 = rf_wd;
+    else
+        rf_rd2 = rmem[rf_ra2];
 end
 
 always @(posedge CLK) if (CE) begin
@@ -720,11 +726,10 @@ wire haz_data_ex = idex_ctl.wb.RegWrite & |idex_rf_wa &
 wire haz_data_ma = exma_ctl.wb.RegWrite & |exma_rf_wa &
      ((exma_rf_wa == rf_ra1) | (exma_rf_wa == rf_ra2));
 
-// TODO: Eliminate this hazard by forwarding reg. writes to same-cycle reads.
-wire haz_data_wb = mawb_ctl.wb.RegWrite & |mawb_rf_wa &
-     ((mawb_rf_wa == rf_ra1) | (mawb_rf_wa == rf_ra2));
+// Note: Because reg. writes in WB are forwarded to reads in ID, there
+// is no data hazard in WB.
 
-wire haz_data = haz_data_ex | haz_data_ma | haz_data_wb;
+wire haz_data = haz_data_ex | haz_data_ma;
 
 // Flag Hazard
 wire haz_bcond = id_ctl_ex.Branch & (id_ctl_ex.Bcond[2:0] != BCOND_T);
