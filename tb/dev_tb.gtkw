@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Mon Oct 27 06:32:05 2025
+[*] Wed Oct 29 07:24:35 2025
 [*]
 [dumpfile] "/Users/dhunter/src/v810-emu/tb/dev_tb.vcd"
-[dumpfile_mtime] "Mon Oct 27 06:31:25 2025"
-[dumpfile_size] 199269
+[dumpfile_mtime] "Wed Oct 29 07:19:58 2025"
+[dumpfile_size] 192437
 [savefile] "/Users/dhunter/src/v810-emu/tb/dev_tb.gtkw"
-[timestart] 19214000
+[timestart] 13594400
 [size] 1333 600
 [pos] -1 -1
-*-16.774984 19400000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+*-16.821228 14020000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 [markername] AA
 [markername] BB
 [markername] CC
@@ -63,8 +63,14 @@ dev_tb.dut.if_flush
 dev_tb.dut.if_pc_inc
 dev_tb.dut.if_pc_inc4
 dev_tb.dut.if_pc_set
-dev_tb.dut.if_ins32
-dev_tb.dut.if_ins32_wrap
+dev_tb.dut.if_pdlo_ins32
+dev_tb.dut.if_pdhi_ins32
+dev_tb.dut.if_ir_swap
+@29
+dev_tb.dut.if_imi_a2
+@28
+dev_tb.dut.if_wrap
+dev_tb.dut.if_wrapped
 dev_tb.dut.if_ins32_fetch_hi
 @22
 dev_tb.dut.pc[31:0]
@@ -182,7 +188,6 @@ dev_tb.dut.mawb_ctl[1:0]
 @28
 dev_tb.dut.haz_data_ex
 dev_tb.dut.haz_data_ma
-dev_tb.dut.haz_data_wb
 dev_tb.dut.haz_data
 dev_tb.dut.haz_flag_ex
 dev_tb.dut.haz_flag

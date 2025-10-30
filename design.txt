@@ -1,3 +1,36 @@
+Instruction fetch
+-----------------
+
+Instructions are stored little-endian and can be 16-bit or 32-bit
+wide.  The size can be determined from the first 6 bits.  Pre-fetching
+is used to minimize fetch delays for 32-bit instructions that are
+wrapped or spread across two words.
+
+PC1:        Bit 1 of PC. Next ins. will start mid-word.
+wrapped:    Value of wrap from last fetch cycle
+pdh/l:      Low/high halfword on I-bus
+pdh/l32:    Low/high halfword on I-bus is start of 32-bit ins.
+idrh:       Last high halfword fetched from I-bus
+
+irh/l:      Instruction to forward to ID
+PCi:        Value to add to PC. PCn = PC + PCi
+ia:         Next address to issue to I-bus (bits 1:0 are ignored)
+wrap:       We fetched the low halfword of a 32-bit ins.
+flush:      IF incomplete; needs to fetch high halfword. Send '0 to ID.
+
+
+PC1  wrapped  pdh32  pdl32 |  irh  irl   PCi  ia     wrap  flush
+----------------------------------------------------------------
+0    0        0      0     |  'X   pdl   2    PCn    0     0
+1    0        0      0     |  'X   pdh   2    PCn    0     0
+
+0    0        x      1     |  pdh  pdl   4    PCn    0     0
+0    0        1      0     |  'X   pdl   2    PCn+2  1     0
+
+1    0        1      x     |  'X   '0    0    PCn+2  1     1
+1    1        0      x     |  pdl  idrh  4    PCn    0     0
+1    1        1      x     |  pdl  idrh  4    PCn+2  1     0
+
 
 Pipeline timing for [3] interlock examples
 ------------------------------------------

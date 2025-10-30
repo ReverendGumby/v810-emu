@@ -225,6 +225,7 @@ endtask
 task load_hex16(string fn);
 bit [15:0] tmp [SIZE * 2];
     assert(DW / 16 == 2);
+    $display("Loading %s", fn);
     for (int i = 0; i < SIZE * 2; i++)
         tmp[i] = '0;
     $readmemh(fn, tmp);

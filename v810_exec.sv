@@ -158,8 +158,6 @@ struct packed {
 // IF - Instruction Fetch stage
 //////////////////////////////////////////////////////////////////////
 
-logic           if_ins32;
-logic           if_ins32_wrap;
 logic           if_ins32_fetch_hi;
 
 //////////////////////////////////////////////////////////////////////
@@ -167,9 +165,15 @@ logic           if_ins32_fetch_hi;
 
 logic [31:0]    imi_a;
 logic [31:0]    imi_d;
+logic [15:0]    idrh;   // last high halfword fetched
 
 assign IA = imi_a;
 assign imi_d = ID;
+
+always @(posedge CLK) if (CE) begin
+    if (~if_stall)
+        idrh <= imi_d[31:16];
+end
 
 //////////////////////////////////////////////////////////////////////
 // Program Counter
@@ -177,12 +181,12 @@ assign imi_d = ID;
 logic           if_pc_inc, if_pc_inc4, if_pc_set;
 logic [31:0]    if_pc_set_val;
 
-logic [31:0]    pc, pci, pcn;
-
-assign if_pc_inc4 = if_ins32;
+logic [31:0]    pc, pci, pci2, pci4, pcn;
 
 always @* begin
-    pci = pc + (if_pc_inc4 ? 32'd4 : 32'd2);
+    pci2 = pc + 32'd2;
+    pci4 = pc + 32'd4;
+    pci = if_pc_inc4 ? pci4 : pci2;
 end
 
 always @* begin
@@ -199,17 +203,17 @@ always @(posedge CLK) if (CE) begin
     if (~RESn) begin
         pc <= '0;
     end
-    else if (~if_stall) begin
+    else if (~(if_stall | if_ins32_fetch_hi)) begin
         pc <= pcn;
     end
 end
-
-assign imi_a = if_ins32_fetch_hi ? pci : pc;
 
 //////////////////////////////////////////////////////////////////////
 // Instruction Pre-Decode
 
 logic [31:0]    pd;
+logic           if_imi_a2;
+logic           if_pdlo_ins32, if_pdhi_ins32;
 
 always @* begin
     if (~RESn) begin
@@ -217,10 +221,6 @@ always @* begin
     end
     else begin
         pd = imi_d;
-        if (if_ins32_fetch_hi)
-            pd = {pd[15:0], ifid_ir[31:16]};
-        else if (pc[1])
-            pd = {pd[15:0], pd[31:16]};
     end
 end
 
@@ -236,22 +236,68 @@ function if_is_ins32(input [15:0] ins);
     endcase
 endfunction
 
-assign if_ins32 = if_is_ins32(pd[15:0]);
+always @(posedge CLK) if (CE) begin
+    if (~RESn)
+        imi_a <= '0;
+    else if (~if_stall) begin
+        if (if_imi_a2 & ~if_pc_set)
+            imi_a <= pcn + 2'd2;
+        else
+            imi_a <= pcn;
+    end
+end
+
+assign if_pdlo_ins32 = if_is_ins32(pd[15:0]);
+assign if_pdhi_ins32 = if_is_ins32(pd[31:16]);
 
 //////////////////////////////////////////////////////////////////////
 // 32-bit fetch handling
 
-// TODO: Silicon probably optimizes this to pre-fetch wrapped 32-bit ins.
+// Pre-fetch wrapped 32-bit ins. whenever possible.  Stall if two
+// fetch cycles needed, e.g., on branching to a wrapped 32-bit ins.
 
-assign if_ins32_wrap = if_ins32 & imi_a[1];
-assign if_pc_inc = ~(if_ins32_wrap & ~if_ins32_fetch_hi);
+logic           if_wrap, if_wrapped;
+logic           if_ir_swap;
+
+always @* begin
+    if_pc_inc4 = '0;
+    if_wrap = '0;
+    if_ins32_fetch_hi = '0;
+
+    casex ({pc[1], if_wrapped, if_pdhi_ins32, if_pdlo_ins32})
+        4'b0000,
+        4'b1000,
+        4'b110x:
+            ;
+        4'b00x1:    begin
+            if_pc_inc4 = '1;
+        end
+        4'b0010:    begin
+            if_wrap = '1;
+        end
+        4'b101x:    begin
+            if_wrap = '1;
+            if_ins32_fetch_hi = '1;
+        end
+        4'b111x:    begin
+            if_pc_inc4 = '1;
+            if_wrap = '1;
+        end
+        default:    // invalid state
+            assert(0);
+    endcase
+end
+
+assign if_ir_swap = pc[1];
+assign if_imi_a2 = if_wrap;
+assign if_pc_inc = ~if_ins32_fetch_hi;
 
 always @(posedge CLK) if (CE) begin
     if (~RESn) begin
-        if_ins32_fetch_hi <= '0;
+        if_wrapped <= '0;
     end
     else if (~if_stall) begin
-        if_ins32_fetch_hi <= if_ins32_wrap & ~if_ins32_fetch_hi;
+        if_wrapped <= if_wrap & ~if_pc_set;
     end
 end
 
@@ -262,8 +308,10 @@ logic [31:0]    ir;
 
 always @* begin
     ir = pd;
-    if (~if_pc_inc)
-        ir = {ir[15:0], 16'h0}; // save LO in IF/ID reg
+    if (if_ir_swap)
+        ir = {ir[15:0], ir[31:16]};
+    if (if_wrapped)
+        ir[15:0] = idrh;
     if (if_flush)
         ir = '0;
 end

@@ -18,12 +18,12 @@ A800 000F // JR 33
 @10
 
 0841 // SUB r1, r2  r2 = 1
-AC00 000F // JAL 49
+AC00 0011 // JAL 51
 34A2 // AND r2, r5  r5 = 1
 6800 // HALT
 
-@18
+@19
 
-4045 // MOV #5, r2
+A040 0005 // MOVEA #5, r0, r2
 181F // JMP LP
 34A2 // AND r2, r5  r5 = 1
