@@ -118,6 +118,7 @@ typedef struct packed {
 typedef struct packed {
     logic       RegWrite;
     logic       MemtoReg;
+    logic [1:0] MemWidth;
 } ctl_wb_t;
 
 // IF/ID
@@ -149,6 +150,7 @@ struct packed {
 logic [4:0]     mawb_rf_wa;
 logic [31:0]    mawb_alu_out;
 logic [31:0]    mawb_mem_rd;
+logic [1:0]     mawb_mem_bsel;
 struct packed {
     ctl_wb_t    wb;
 } mawb_ctl;
@@ -472,6 +474,7 @@ always @* begin
                 id_ctl_ex.ALUSrc2 = ALUSRC2_IMM16;
                 id_ctl_ex.ALUOp = ALUOP_ADD;
                 id_ctl_ma.MemRead = '1;
+                id_ctl_wb.MemWidth = ifid_ir[11:10];
                 id_ctl_wb.MemtoReg = '1;
                 id_ctl_wb.RegWrite = '1;
             end
@@ -482,6 +485,7 @@ always @* begin
                 id_ctl_ex.ALUSrc2 = ALUSRC2_IMM16;
                 id_ctl_ex.ALUOp = ALUOP_ADD;
                 id_ctl_ma.MemWrite = '1;
+                id_ctl_wb.MemWidth = ifid_ir[11:10];
             end
         default: ;
     endcase
@@ -726,11 +730,40 @@ end
 // MA - Memory Access
 //////////////////////////////////////////////////////////////////////
 
-logic [31:0]    ma_di;
+logic [31:0]    ma_di, ma_do;
+logic [3:0]     ma_ben;
+
+wire [1:0]  ma_bsel = DA[1:0];
+wire        ma_hsel = DA[1];
+wire        ma_bes = MRQn;
+
+always @* begin
+    ma_ben = '1;
+    case (exma_ctl.wb.MemWidth)
+        2'b00:
+            ma_ben[ma_bsel] = ma_bes;
+        2'b01:
+            ma_ben[ma_hsel*2+:2] = {2{ma_bes}};
+        default: // 2'b11
+            ma_ben = {4{ma_bes}};
+    endcase
+end
+
+always @* begin
+    case (exma_ctl.wb.MemWidth)
+        2'b00:
+            ma_do = {4{exma_rf_rd2[7:0]}};
+        2'b01:
+            ma_do = {2{exma_rf_rd2[15:0]}};
+        default: // 2'b11
+            ma_do = exma_rf_rd2;
+    endcase
+end
 
 assign DA = exma_alu_out;
 assign ma_di = DD_I;
-assign DD_O = exma_rf_rd2;
+assign DD_O = ma_do;
+assign BEn = ma_ben;
 
 assign MRQn = ~(exma_ctl.ma.MemRead | exma_ctl.ma.MemWrite);
 assign RW = MRQn | exma_ctl.ma.MemRead;
@@ -750,6 +783,7 @@ always @(posedge CLK) if (CE) begin
     mawb_rf_wa <= exma_rf_wa;
     mawb_alu_out <= exma_alu_out;
     mawb_mem_rd <= ma_di;
+    mawb_mem_bsel <= ma_bsel;
     mawb_ctl.wb <= exma_ctl.wb;
 end
 
@@ -758,8 +792,29 @@ end
 // WB - Write back
 //////////////////////////////////////////////////////////////////////
 
+logic [31:0]    wb_ldmem;
+
+wire [1:0] wb_mbsel = mawb_mem_bsel;
+wire       wb_mhsel = wb_mbsel[1];
+
+// Sign-extend memory read
+always @* begin
+    case (mawb_ctl.wb.MemWidth)
+        2'b00: begin
+            wb_ldmem[7:0] = mawb_mem_rd[wb_mbsel*8+:8];
+            wb_ldmem[31:8] = {24{wb_ldmem[7]}};
+        end
+        2'b01: begin
+            wb_ldmem[15:0] = mawb_mem_rd[wb_mhsel*16+:16];
+            wb_ldmem[31:16] = {16{wb_ldmem[15]}};
+        end
+        default: // 2'b11
+            wb_ldmem = mawb_mem_rd;
+    endcase
+end
+
 assign rf_wa = mawb_rf_wa;
-assign rf_wd = mawb_ctl.wb.MemtoReg ? mawb_mem_rd : mawb_alu_out;
+assign rf_wd = mawb_ctl.wb.MemtoReg ? wb_ldmem : mawb_alu_out;
 assign rf_we = mawb_ctl.wb.RegWrite & |rf_wa;
 
 

@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Wed Oct 29 07:24:35 2025
+[*] Sat Nov  1 04:19:10 2025
 [*]
 [dumpfile] "/Users/dhunter/src/v810-emu/tb/dev_tb.vcd"
-[dumpfile_mtime] "Wed Oct 29 07:19:58 2025"
-[dumpfile_size] 192437
+[dumpfile_mtime] "Sat Nov  1 04:15:48 2025"
+[dumpfile_size] 222542
 [savefile] "/Users/dhunter/src/v810-emu/tb/dev_tb.gtkw"
-[timestart] 13594400
+[timestart] 17882000
 [size] 1333 600
 [pos] -1 -1
-*-16.821228 14020000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+*-16.821228 17840000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 [markername] AA
 [markername] BB
 [markername] CC
@@ -52,6 +52,7 @@ dev_tb.dut.DD_I[31:0]
 dev_tb.dut.DD_O[31:0]
 @28
 dev_tb.dut.MRQn
+dev_tb.dut.BEn[3:0]
 dev_tb.dut.RW
 @200
 -
@@ -66,9 +67,7 @@ dev_tb.dut.if_pc_set
 dev_tb.dut.if_pdlo_ins32
 dev_tb.dut.if_pdhi_ins32
 dev_tb.dut.if_ir_swap
-@29
 dev_tb.dut.if_imi_a2
-@28
 dev_tb.dut.if_wrap
 dev_tb.dut.if_wrapped
 dev_tb.dut.if_ins32_fetch_hi
@@ -145,7 +144,7 @@ dev_tb.dut.idex_ir[31:0]
 dev_tb.dut.idex_rf_rd1[31:0]
 dev_tb.dut.idex_rf_rd2[31:0]
 dev_tb.dut.idex_rf_wa[4:0]
-dev_tb.dut.idex_ctl[23:0]
+dev_tb.dut.idex_ctl[25:0]
 dev_tb.dut.alu_in1[31:0]
 dev_tb.dut.alu_in2[31:0]
 dev_tb.dut.alu_op[3:0]
@@ -166,7 +165,7 @@ dev_tb.dut.exma_alu_out[31:0]
 @28
 dev_tb.dut.exma_alu_fl[3:0]
 @22
-dev_tb.dut.exma_ctl[7:0]
+dev_tb.dut.exma_ctl[9:0]
 @28
 dev_tb.dut.psw[3:0]
 @22
@@ -178,9 +177,14 @@ dev_tb.dut.ma_di[31:0]
 @22
 dev_tb.dut.mawb_alu_out[31:0]
 dev_tb.dut.mawb_mem_rd[31:0]
-dev_tb.dut.mawb_rf_wa[4:0]
 @28
-dev_tb.dut.mawb_ctl[1:0]
+dev_tb.dut.mawb_mem_bsel[1:0]
+@22
+dev_tb.dut.mawb_rf_wa[4:0]
+@23
+dev_tb.dut.mawb_ctl[3:0]
+@22
+dev_tb.dut.wb_ldmem[31:0]
 @1000200
 -wb
 @800200

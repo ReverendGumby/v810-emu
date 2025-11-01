@@ -6,6 +6,7 @@ bit             clk, ce, res;
 logic [31:0]    ia, da;
 logic [31:0]    dut_id;
 logic [31:0]    dut_dd_i, dut_dd_o;
+logic [3:0]     dut_ben;
 logic           mrqn, rw;
 
 initial begin
@@ -27,7 +28,7 @@ v810_exec dut
    .DA(da),
    .DD_I(dut_dd_i),
    .DD_O(dut_dd_o),
-   .BEn(),
+   .BEn(dut_ben),
 
    .ST(),
    .MRQn(mrqn),
@@ -38,8 +39,9 @@ ram #(10, 32) imem
   (
    .CLK(clk),
    .nCE('0),
-   .nWE(rw),
+   .nWE('1),
    .nOE('0),
+   .nBE('1),
    .A(ia[11:2]),
    .DI('Z),
    .DO(dut_id)
@@ -51,6 +53,7 @@ ram #(10, 32) dmem
    .nCE(mrqn),
    .nWE(rw),
    .nOE(~rw),
+   .nBE(dut_ben),
    .A(da[11:2]),
    .DI(dut_dd_o),
    .DO(dut_dd_i)
@@ -82,13 +85,15 @@ endtask
 initial #0 begin
     test_mov_rr;
     test_alu0;
-    test_ldst;
+    test_ldst0;
     test_data_hazard0;
     test_bcond0;
     test_setf;
     test_jmp_jr_jal;
     test_alu1;
     test_alu2;
+    test_ldst1;
+    test_ldst2;
 
     $display("Done!");
     $finish();
@@ -146,14 +151,40 @@ task test_alu2;
     assert(dut.rmem[15] == 32'h0);
 endtask
 
-task test_ldst;
-    imem.load_hex16("dev_imem_ldst.hex");
-    dmem.load_hex("dev_dmem_ldst.hex");
+task test_ldst0;
+    imem.load_hex16("dev_imem_ldst0.hex");
+    dmem.load_hex("dev_dmem_ldst0.hex");
     start_test;
     end_test;
 
     assert(dmem.mem[3] == dmem.mem[1]);
     assert(dmem.mem[4] == dmem.mem[2]);
+endtask
+
+task test_ldst1;
+    imem.load_hex16("dev_imem_ldst1.hex");
+    dmem.load_hex("dev_dmem_ldst1.hex");
+    start_test;
+    end_test;
+
+    assert(dmem.mem[4][31:16] == dmem.mem[1][15:0]);
+    assert(dmem.mem[4][15:0] == dmem.mem[1][31:16]);
+    assert(dmem.mem[3][31:16] == dmem.mem[2][15:0]);
+    assert(dmem.mem[3][15:0] == dmem.mem[2][31:16]);
+endtask
+
+task test_ldst2;
+    imem.load_hex16("dev_imem_ldst2.hex");
+    dmem.load_hex("dev_dmem_ldst2.hex");
+    start_test;
+    end_test;
+
+    assert(dmem.mem[4][31:24] == dmem.mem[1][7:0]);
+    assert(dmem.mem[4][23:16] == dmem.mem[1][15:8]);
+    assert(dmem.mem[4][15:0] == '0);
+    assert(dmem.mem[3][15:8] == dmem.mem[2][23:16]);
+    assert(dmem.mem[3][7:0] == dmem.mem[2][31:24]);
+    assert(dmem.mem[3][31:16] == '0);
 endtask
 
 task test_data_hazard0;
@@ -198,13 +229,14 @@ module ram
   #(parameter AW,
     parameter DW)
   (
-   input           CLK,
-   input           nCE,
-   input           nWE,
-   input           nOE,
-   input [AW-1:0]  A,
-   input [DW-1:0]  DI,
-   output [DW-1:0] DO
+   input            CLK,
+   input            nCE,
+   input            nWE,
+   input            nOE,
+   input [DW/8-1:0] nBE,
+   input [AW-1:0]   A,
+   input [DW-1:0]   DI,
+   output [DW-1:0]  DO
  );
 
 localparam SIZE = 1 << AW;
@@ -251,9 +283,9 @@ end
 assign DO = ~(nCE | nOE) ? dor : {DW{1'bz}};
 
 always @(posedge CLK) begin
-    if (~(nCE | nWE)) begin
-        mem[A] <= DI;
-    end
+    for (int i = 0; i < DW/8; i++)
+        if (~(nCE | nWE | nBE[i]))
+            mem[A][i*8+:8] <= DI[i*8+:8];
 end
 
 endmodule
