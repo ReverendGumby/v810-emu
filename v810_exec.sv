@@ -20,16 +20,19 @@ module v810_exec
    // Instruction bus
    output [31:0] IA,
    input [31:0]  ID,
+   output        IREQ, // Access request
+   input         IACK, // Access acknowledge
 
    // Data bus
    output [31:0] DA,
    input [31:0]  DD_I,
    output [31:0] DD_O,
-   output [3:0]  BEn, // Byte Enable
+   output [3:0]  DBE, // Byte Enable
+   output        DWR, // Write / not Read
+   output        DREQ, // Access request
+   input         DACK, // Access acknowledge
 
-   output [1:0]  ST, // Status
-   output        MRQn, // Memory ReQuest
-   output        RW // Read / Write
+   output [1:0]  ST // Status
    );
 
 
@@ -68,8 +71,9 @@ typedef struct packed {
 } aluflags_t;
 
 wor             if_stall, if_flush;
-wor             id_flush;
-wor             ex_flush;
+wor             id_stall, id_flush;
+wor             ex_stall, ex_flush;
+wor             ma_flush;
 
 event halt;
 
@@ -495,10 +499,14 @@ end
 
 // Handle ins. with multiple EX cycles
 always @(posedge CLK) if (CE) begin
-    if (~RESn | ~id_ctl_ex.Extend)
+    if (~RESn)
         id_ccnt <= '0;
-    else
-        id_ccnt <= id_ccnt + 1'd1;
+    else if (~id_stall) begin
+        if (~id_ctl_ex.Extend)
+            id_ccnt <= '0;
+        else
+            id_ccnt <= id_ccnt + 1'd1;
+    end
 end
 
 assign if_stall = id_ctl_ex.Extend;
@@ -565,14 +573,16 @@ assign rmem30 = rmem[30]; assign rmem31 = rmem[31];
 wire idex_ctl_zero = RESn & (id_flush);
 
 always @(posedge CLK) if (CE) begin
-    idex_pc <= ifid_pc;
-    idex_ir <= ifid_ir;
-    idex_rf_wa <= id_rf_wa;
-    idex_rf_rd1 <= rf_rd1;
-    idex_rf_rd2 <= rf_rd2;
-    idex_ctl.ex <= idex_ctl_zero ? '0 : id_ctl_ex;
-    idex_ctl.ma <= idex_ctl_zero ? '0 : id_ctl_ma;
-    idex_ctl.wb <= idex_ctl_zero ? '0 : id_ctl_wb;
+    if (~RESn | ~id_stall) begin
+        idex_pc <= ifid_pc;
+        idex_ir <= ifid_ir;
+        idex_rf_wa <= id_rf_wa;
+        idex_rf_rd1 <= rf_rd1;
+        idex_rf_rd2 <= rf_rd2;
+        idex_ctl.ex <= idex_ctl_zero ? '0 : id_ctl_ex;
+        idex_ctl.ma <= idex_ctl_zero ? '0 : id_ctl_ma;
+        idex_ctl.wb <= idex_ctl_zero ? '0 : id_ctl_wb;
+    end
 end
 
 
@@ -717,12 +727,14 @@ end
 wire exma_ctl_flush = RESn & (ex_flush);
 
 always @(posedge CLK) if (CE) begin
-    exma_rf_wa <= idex_rf_wa;
-    exma_rf_rd2 <= idex_rf_rd2;
-    exma_alu_out <= alu_out;
-    exma_alu_fl <= alu_fl;
-    exma_ctl.ma <= exma_ctl_flush ? '0 : idex_ctl.ma;
-    exma_ctl.wb <= exma_ctl_flush ? '0 : idex_ctl.wb;
+    if (~RESn | ~ex_stall) begin
+        exma_rf_wa <= idex_rf_wa;
+        exma_rf_rd2 <= idex_rf_rd2;
+        exma_alu_out <= alu_out;
+        exma_alu_fl <= alu_fl;
+        exma_ctl.ma <= exma_ctl_flush ? '0 : idex_ctl.ma;
+        exma_ctl.wb <= exma_ctl_flush ? '0 : idex_ctl.wb;
+    end
 end
 
 
@@ -731,21 +743,21 @@ end
 //////////////////////////////////////////////////////////////////////
 
 logic [31:0]    ma_di, ma_do;
-logic [3:0]     ma_ben;
+logic [3:0]     ma_be;
 
 wire [1:0]  ma_bsel = DA[1:0];
 wire        ma_hsel = DA[1];
-wire        ma_bes = MRQn;
+wire        ma_bes = DREQ;
 
 always @* begin
-    ma_ben = '1;
+    ma_be = '0;
     case (exma_ctl.wb.MemWidth)
         2'b00:
-            ma_ben[ma_bsel] = ma_bes;
+            ma_be[ma_bsel] = ma_bes;
         2'b01:
-            ma_ben[ma_hsel*2+:2] = {2{ma_bes}};
+            ma_be[ma_hsel*2+:2] = {2{ma_bes}};
         default: // 2'b11
-            ma_ben = {4{ma_bes}};
+            ma_be = {4{ma_bes}};
     endcase
 end
 
@@ -763,10 +775,10 @@ end
 assign DA = exma_alu_out;
 assign ma_di = DD_I;
 assign DD_O = ma_do;
-assign BEn = ma_ben;
+assign DBE = ma_be;
 
-assign MRQn = ~(exma_ctl.ma.MemRead | exma_ctl.ma.MemWrite);
-assign RW = MRQn | exma_ctl.ma.MemRead;
+assign DREQ = exma_ctl.ma.MemRead | exma_ctl.ma.MemWrite;
+assign DWR = exma_ctl.ma.MemWrite;
 
 always @(posedge CLK) if (CE) begin
     if (~RESn)
@@ -776,15 +788,24 @@ always @(posedge CLK) if (CE) begin
                (exma_alu_fl & exma_ctl.ma.FlagMask);
 end
 
+// Stall pipeline while memory access completes
+wire ma_incomplete = DREQ & ~DACK;
+assign if_stall = ma_incomplete;
+assign id_stall = ma_incomplete;
+assign ex_stall = ma_incomplete;
+assign ma_flush = ma_incomplete;
+
 //////////////////////////////////////////////////////////////////////
 // MA/WB pipeline register
+
+wire mawb_ctl_flush = RESn & (ma_flush);
 
 always @(posedge CLK) if (CE) begin
     mawb_rf_wa <= exma_rf_wa;
     mawb_alu_out <= exma_alu_out;
     mawb_mem_rd <= ma_di;
     mawb_mem_bsel <= ma_bsel;
-    mawb_ctl.wb <= exma_ctl.wb;
+    mawb_ctl.wb <= mawb_ctl_flush ? '0 : exma_ctl.wb;
 end
 
 

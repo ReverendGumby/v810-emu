@@ -5,9 +5,13 @@ module dev_tb();
 bit             clk, ce, res;
 logic [31:0]    ia, da;
 logic [31:0]    dut_id;
+logic           dut_ireq, dut_iack;
 logic [31:0]    dut_dd_i, dut_dd_o;
-logic [3:0]     dut_ben;
-logic           mrqn, rw;
+logic [3:0]     dut_dbe;
+logic           dut_dwr;
+logic           dut_dreq, dut_dack;
+logic           dack_w0, dack_w1;
+int             dmem_ws;
 
 initial begin
     $timeformat(-6, 0, " us", 1);
@@ -24,16 +28,37 @@ v810_exec dut
 
    .IA(ia),
    .ID(dut_id),
+   .IREQ(dut_ireq),
+   .IACK(dut_iack),
 
    .DA(da),
    .DD_I(dut_dd_i),
    .DD_O(dut_dd_o),
-   .BEn(dut_ben),
+   .DBE(dut_dbe),
+   .DWR(dut_dwr),
+   .DREQ(dut_dreq),
+   .DACK(dut_dack),
 
-   .ST(),
-   .MRQn(mrqn),
-   .RW(rw)
+   .ST()
    );
+
+assign dut_iack = dut_ireq;
+
+// Emulate memory with one wait state
+always @(posedge clk) if (ce) begin
+    dack_w1 <= ~dut_dack & dut_dreq;
+end
+
+// Emulate memory with no wait states
+assign dack_w0 = dut_dreq;
+
+always @* begin
+    case (dmem_ws)
+        0: dut_dack = dack_w0;
+        1: dut_dack = dack_w1;
+        default: dut_dack = 'Z;
+    endcase
+end
 
 ram #(10, 32) imem
   (
@@ -50,10 +75,10 @@ ram #(10, 32) imem
 ram #(10, 32) dmem
   (
    .CLK(clk),
-   .nCE(mrqn),
-   .nWE(rw),
-   .nOE(~rw),
-   .nBE(dut_ben),
+   .nCE(~dut_dack),
+   .nWE(~dut_dwr),
+   .nOE(dut_dwr),
+   .nBE(~dut_dbe),
    .A(da[11:2]),
    .DI(dut_dd_o),
    .DO(dut_dd_i)
@@ -83,17 +108,11 @@ task end_test;
 endtask
 
 initial #0 begin
-    test_mov_rr;
-    test_alu0;
-    test_ldst0;
-    test_data_hazard0;
-    test_bcond0;
-    test_setf;
-    test_jmp_jr_jal;
-    test_alu1;
-    test_alu2;
-    test_ldst1;
-    test_ldst2;
+    dmem_ws = 0;
+    test_all;
+
+    dmem_ws = 1;
+    test_all;
 
     $display("Done!");
     $finish();
@@ -219,6 +238,20 @@ task test_jmp_jr_jal;
     end_test;
 
     assert(dut.rmem[2] == 32'h5);
+endtask
+
+task test_all;
+    test_mov_rr;
+    test_alu0;
+    test_ldst0;
+    test_data_hazard0;
+    test_bcond0;
+    test_setf;
+    test_jmp_jr_jal;
+    test_alu1;
+    test_alu2;
+    test_ldst1;
+    test_ldst2;
 endtask
 
 endmodule
