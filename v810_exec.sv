@@ -203,7 +203,7 @@ end
 
 always @(posedge CLK) if (CE) begin
     if (~RESn) begin
-        pc <= '0;
+        pc <= 32'hFFFFFFF0;
     end
     else if (~(if_stall | if_ins32_fetch_hi)) begin
         pc <= pcn;
@@ -240,7 +240,7 @@ endfunction
 
 always @(posedge CLK) if (CE) begin
     if (~RESn)
-        imi_a <= '0;
+        imi_a <= pc;
     else if (~if_stall) begin
         if (if_imi_a2 & ~if_pc_set)
             imi_a <= pcn + 2'd2;
