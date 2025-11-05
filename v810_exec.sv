@@ -27,6 +27,7 @@ module v810_exec
    output [31:0] DA,
    input [31:0]  DD_I,
    output [31:0] DD_O,
+   output [1:0]  DBC, // Byte Count - 1 (0=1, 1=2, 3=4)
    output [3:0]  DBE, // Byte Enable
    output        DWR, // Write / not Read
    output        DREQ, // Access request
@@ -775,6 +776,7 @@ end
 assign DA = exma_alu_out;
 assign ma_di = DD_I;
 assign DD_O = ma_do;
+assign DBC = exma_ctl.wb.MemWidth;
 assign DBE = ma_be;
 
 assign DREQ = exma_ctl.ma.MemRead | exma_ctl.ma.MemWrite;

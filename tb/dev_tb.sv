@@ -3,18 +3,33 @@
 module dev_tb();
 
 bit             clk, ce, res;
-logic [31:0]    ia, da;
+logic [31:0]    ia, dut_da;
 logic [31:0]    dut_id;
 logic           dut_ireq, dut_iack;
-logic [31:0]    dut_dd_i, dut_dd_o;
-logic [3:0]     dut_dbe;
-logic           dut_dwr;
-logic           dut_dreq, dut_dack;
-logic           dack_w0, dack_w1;
-int             dmem_ws;
+wire [31:0]     dut_dd_i, dut_dd_o;
+wire [1:0]      dut_dbc;
+wire [3:0]      dut_dbe;
+wire            dut_dwr;
+wire            dut_dreq, dut_dack;
+
+wire [31:0]     dut_mem_a;
+logic [31:0]    dut_mem_d_i, dut_mem_d_o;
+wire [3:0]      dut_mem_ben;
+wire            dut_mem_dan;
+wire            dut_mem_mrqn;
+wire            dut_mem_rw;
+wire            dut_mem_bcystn;
+logic           dut_mem_readyn;
+logic           dut_mem_szrqn;
+
+logic [31:0]    dmem_di, dmem_do;
+logic [3:0]     dmem_ben;
+
+logic           ready_w0, ready_w1;
+int             dmem_ws, dmem_dw;
 
 initial begin
-    $timeformat(-6, 0, " us", 1);
+    $timeformat(-9, 0, " ns", 1);
 
     $dumpfile("dev_tb.vcd");
     $dumpvars();
@@ -31,9 +46,10 @@ v810_exec dut
    .IREQ(dut_ireq),
    .IACK(dut_iack),
 
-   .DA(da),
+   .DA(dut_da),
    .DD_I(dut_dd_i),
    .DD_O(dut_dd_o),
+   .DBC(dut_dbc),
    .DBE(dut_dbe),
    .DWR(dut_dwr),
    .DREQ(dut_dreq),
@@ -42,22 +58,72 @@ v810_exec dut
    .ST()
    );
 
+v810_mem dut_mem
+  (
+   .RESn(~res),
+   .CLK(clk),
+   .CE(ce),
+
+   .EDA(dut_da),
+   .EDD_I(dut_dd_i),
+   .EDD_O(dut_dd_o),
+   .EDBC(dut_dbc),
+   .EDBE(dut_dbe),
+   .EDWR(dut_dwr),
+   .EDREQ(dut_dreq),
+   .EDACK(dut_dack),
+
+   .A(dut_mem_a),
+   .D_I(dut_mem_d_i),
+   .D_O(dut_mem_d_o),
+   .BEn(dut_mem_ben),
+   .DAn(dut_mem_dan),
+   .MRQn(dut_mem_mrqn),
+   .RW(dut_mem_rw),
+   .BCYSTn(dut_mem_bcystn),
+   .READYn(dut_mem_readyn),
+   .SZRQn(dut_mem_szrqn)
+   );
+
 assign dut_iack = dut_ireq;
+
+assign dut_mem_szrqn = ~((dmem_dw == 16) & ~dut_mem_readyn);
 
 // Emulate memory with one wait state
 always @(posedge clk) if (ce) begin
-    dack_w1 <= ~dut_dack & dut_dreq;
+    ready_w1 <= ~ready_w1 & ~dut_mem_dan;
 end
 
 // Emulate memory with no wait states
-assign dack_w0 = dut_dreq;
+assign ready_w0 = ~dut_mem_dan;
 
 always @* begin
     case (dmem_ws)
-        0: dut_dack = dack_w0;
-        1: dut_dack = dack_w1;
-        default: dut_dack = 'Z;
+        0: dut_mem_readyn = ~ready_w0;
+        1: dut_mem_readyn = ~ready_w1;
+        default: dut_mem_readyn = 'X;
     endcase
+end
+
+assign dmem_ben = dut_mem_ben;
+
+always @* begin
+    if (dmem_dw == 32) begin
+        dmem_di = dut_mem_d_o;
+        dut_mem_d_i = dmem_do;
+    end
+    else begin
+        case (dut_mem_ben)
+            4'b1110, 4'b1101, 4'b1100, 4'b0000: begin
+                dmem_di = {16'bz, dut_mem_d_o[15:0]};
+                dut_mem_d_i = {16'bz, dmem_do[15:0]};
+            end
+            default: begin
+                dmem_di = {dut_mem_d_o[15:0], 16'bz};
+                dut_mem_d_i = {16'bz, dmem_do[31:16]};
+            end
+        endcase
+    end
 end
 
 ram #(10, 32) imem
@@ -75,13 +141,13 @@ ram #(10, 32) imem
 ram #(10, 32) dmem
   (
    .CLK(clk),
-   .nCE(~dut_dack),
-   .nWE(~dut_dwr),
-   .nOE(dut_dwr),
-   .nBE(~dut_dbe),
-   .A(da[11:2]),
-   .DI(dut_dd_o),
-   .DO(dut_dd_i)
+   .nCE(dut_mem_mrqn),
+   .nWE(dut_mem_rw),
+   .nOE(~dut_mem_rw),
+   .nBE(dmem_ben),
+   .A(dut_mem_a[11:2]),
+   .DI(dmem_di),
+   .DO(dmem_do)
    );
 
 initial begin
@@ -108,17 +174,38 @@ task end_test;
 endtask
 
 initial #0 begin
+    $display("%t: RAM: Bypass T1 state, 32-bit, 0-wait", $realtime);
+    dut_mem.dbg_bypass = '1;
     dmem_ws = 0;
+    dmem_dw = 32;
+    test_all;
+    dut_mem.dbg_bypass = '0;
+
+    $display("%t: RAM: 32-bit, 0-wait", $realtime);
+    dmem_ws = 0;
+    dmem_dw = 32;
     test_all;
 
+    $display("%t: RAM: 32-bit, 1-wait", $realtime);
     dmem_ws = 1;
+    dmem_dw = 32;
+    test_all;
+
+    $display("%t: RAM: 16-bit, 0-wait", $realtime);
+    dmem_ws = 0;
+    dmem_dw = 16;
+    test_all;
+
+    $display("%t: RAM: 16-bit, 1-wait", $realtime);
+    dmem_ws = 1;
+    dmem_dw = 16;
     test_all;
 
     $display("Done!");
     $finish();
 end
 
-initial #100 begin
+initial #500 begin
     $error("Emergency exit!");
     $fatal(1);
 end
@@ -290,7 +377,7 @@ endtask
 task load_hex16(string fn);
 bit [15:0] tmp [SIZE * 2];
     assert(DW / 16 == 2);
-    $display("Loading %s", fn);
+    //$display("Loading %s", fn);
     for (int i = 0; i < SIZE * 2; i++)
         tmp[i] = '0;
     $readmemh(fn, tmp);
@@ -324,5 +411,5 @@ end
 endmodule
 
 // Local Variables:
-// compile-command: "iverilog -g2012 -grelative-include -s dev_tb -o dev_tb.vvp ../v810_exec.sv dev_tb.sv && ./dev_tb.vvp"
+// compile-command: "iverilog -g2012 -grelative-include -s dev_tb -o dev_tb.vvp ../v810_exec.sv ../v810_mem.sv dev_tb.sv && ./dev_tb.vvp"
 // End:

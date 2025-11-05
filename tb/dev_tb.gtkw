@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Sat Nov  1 04:19:10 2025
+[*] Thu Nov  6 06:06:48 2025
 [*]
 [dumpfile] "/Users/dhunter/src/v810-emu/tb/dev_tb.vcd"
-[dumpfile_mtime] "Sat Nov  1 04:15:48 2025"
-[dumpfile_size] 222542
+[dumpfile_mtime] "Thu Nov  6 06:05:48 2025"
+[dumpfile_size] 1154434
 [savefile] "/Users/dhunter/src/v810-emu/tb/dev_tb.gtkw"
-[timestart] 17882000
+[timestart] 78763000
 [size] 1333 600
 [pos] -1 -1
-*-16.821228 17840000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+*-17.820602 94200000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 [markername] AA
 [markername] BB
 [markername] CC
@@ -52,13 +52,33 @@ dev_tb.dut.IREQ
 dev_tb.dut.IACK
 @22
 dev_tb.dut.DA[31:0]
+@23
 dev_tb.dut.DD_I[31:0]
+@22
 dev_tb.dut.DD_O[31:0]
 @28
 dev_tb.dut.DBE[3:0]
 dev_tb.dut.DWR
 dev_tb.dut.DREQ
 dev_tb.dut.DACK
+@800200
+-dut_mem
+@24
+dev_tb.dut_mem.st[2:0]
+@22
+dev_tb.dut_mem.A[31:0]
+dev_tb.dut_mem.D_I[31:0]
+dev_tb.dut_mem.D_O[31:0]
+@28
+dev_tb.dut_mem.BEn[3:0]
+dev_tb.dut_mem.DAn
+dev_tb.dut_mem.MRQn
+dev_tb.dut_mem.RW
+dev_tb.dut_mem.BCYSTn
+dev_tb.dut_mem.READYn
+dev_tb.dut_mem.SZRQn
+@1000200
+-dut_mem
 @200
 -
 @800200
@@ -85,6 +105,7 @@ dev_tb.dut.ir[31:0]
 @800200
 -id
 @28
+dev_tb.dut.id_stall
 dev_tb.dut.id_flush
 @22
 dev_tb.dut.ifid_pc[31:0]
@@ -142,6 +163,7 @@ dev_tb.dut.id_ccnt[5:0]
 @800200
 -ex
 @28
+dev_tb.dut.ex_stall
 dev_tb.dut.ex_flush
 @22
 dev_tb.dut.idex_pc[31:0]
@@ -164,6 +186,8 @@ dev_tb.dut.branch_taken
 -ex
 @800200
 -ma
+@28
+dev_tb.dut.ma_flush
 @22
 dev_tb.dut.exma_rf_wa[4:0]
 dev_tb.dut.exma_alu_out[31:0]
@@ -186,9 +210,7 @@ dev_tb.dut.mawb_mem_rd[31:0]
 dev_tb.dut.mawb_mem_bsel[1:0]
 @22
 dev_tb.dut.mawb_rf_wa[4:0]
-@23
 dev_tb.dut.mawb_ctl[3:0]
-@22
 dev_tb.dut.wb_ldmem[31:0]
 @1000200
 -wb
