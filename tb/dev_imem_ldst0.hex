@@ -10,4 +10,7 @@ CC61 0004 // LD.W 4[r1], r3
 DC40 000C // ST.W r2, 12[r0]
 DC61 000C // ST.W r3, 12[r1]
 
+CD00 000C // LD.W 12[r0], r8
+CD21 000C // LD.W 12[r1], r9
+
 6800 // HALT

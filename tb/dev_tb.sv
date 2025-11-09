@@ -169,37 +169,13 @@ endtask
 task end_test;
     @(dut.halt) ;               // wait for HALT instruction
 
-    repeat (6) @(posedge clk) ;
+    repeat (10) @(posedge clk) ;
+    assert(dut_mem_dan & dut_mem_mrqn); // reset while bus is busy == bad
     res <= 1;
 endtask
 
 initial #0 begin
-    $display("%t: RAM: Bypass T1 state, 32-bit, 0-wait", $realtime);
-    dut_mem.dbg_bypass = '1;
-    dmem_ws = 0;
-    dmem_dw = 32;
-    test_all;
-    dut_mem.dbg_bypass = '0;
-
-    $display("%t: RAM: 32-bit, 0-wait", $realtime);
-    dmem_ws = 0;
-    dmem_dw = 32;
-    test_all;
-
-    $display("%t: RAM: 32-bit, 1-wait", $realtime);
-    dmem_ws = 1;
-    dmem_dw = 32;
-    test_all;
-
-    $display("%t: RAM: 16-bit, 0-wait", $realtime);
-    dmem_ws = 0;
-    dmem_dw = 16;
-    test_all;
-
-    $display("%t: RAM: 16-bit, 1-wait", $realtime);
-    dmem_ws = 1;
-    dmem_dw = 16;
-    test_all;
+    test_all_modes;
 
     $display("Done!");
     $finish();
@@ -265,6 +241,8 @@ task test_ldst0;
 
     assert(dmem.mem[3] == dmem.mem[1]);
     assert(dmem.mem[4] == dmem.mem[2]);
+    assert(dut.rmem[8] == dmem.mem[3]);
+    assert(dut.rmem[9] == dmem.mem[4]);
 endtask
 
 task test_ldst1;
@@ -277,6 +255,8 @@ task test_ldst1;
     assert(dmem.mem[4][15:0] == dmem.mem[1][31:16]);
     assert(dmem.mem[3][31:16] == dmem.mem[2][15:0]);
     assert(dmem.mem[3][15:0] == dmem.mem[2][31:16]);
+    assert(dut.rmem[8] == dmem.mem[3]);
+    assert(dut.rmem[9] == dmem.mem[4]);
 endtask
 
 task test_ldst2;
@@ -291,6 +271,8 @@ task test_ldst2;
     assert(dmem.mem[3][15:8] == dmem.mem[2][23:16]);
     assert(dmem.mem[3][7:0] == dmem.mem[2][31:24]);
     assert(dmem.mem[3][31:16] == '0);
+    assert(dut.rmem[8] == dmem.mem[3]);
+    assert(dut.rmem[9] == dmem.mem[4]);
 endtask
 
 task test_data_hazard0;
@@ -339,6 +321,45 @@ task test_all;
     test_alu2;
     test_ldst1;
     test_ldst2;
+endtask
+
+task test_all_ram_modes;
+    $display("%t: RAM: Bypass T1 state, 32-bit, 0-wait", $realtime);
+    dut_mem.dbg_bypass_ebi_t1 = '1;
+    dmem_ws = 0;
+    dmem_dw = 32;
+    test_all;
+    dut_mem.dbg_bypass_ebi_t1 = '0;
+
+    $display("%t: RAM: 32-bit, 0-wait", $realtime);
+    dmem_ws = 0;
+    dmem_dw = 32;
+    test_all;
+
+    $display("%t: RAM: 32-bit, 1-wait", $realtime);
+    dmem_ws = 1;
+    dmem_dw = 32;
+    test_all;
+
+    $display("%t: RAM: 16-bit, 0-wait", $realtime);
+    dmem_ws = 0;
+    dmem_dw = 16;
+    test_all;
+
+    $display("%t: RAM: 16-bit, 1-wait", $realtime);
+    dmem_ws = 1;
+    dmem_dw = 16;
+    test_all;
+endtask
+
+task test_all_modes;
+    $display("MAU: WB bypassed");
+    dut_mem.dbg_bypass_wb = '1;
+    test_all_ram_modes;
+
+    $display("MAU: WB enabled");
+    dut_mem.dbg_bypass_wb = '0;
+    test_all_ram_modes;
 endtask
 
 endmodule

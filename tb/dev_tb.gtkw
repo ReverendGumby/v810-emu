@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Thu Nov  6 06:06:48 2025
+[*] Sun Nov  9 02:52:40 2025
 [*]
 [dumpfile] "/Users/dhunter/src/v810-emu/tb/dev_tb.vcd"
-[dumpfile_mtime] "Thu Nov  6 06:05:48 2025"
-[dumpfile_size] 1154434
+[dumpfile_mtime] "Sun Nov  9 02:25:17 2025"
+[dumpfile_size] 1597168
 [savefile] "/Users/dhunter/src/v810-emu/tb/dev_tb.gtkw"
-[timestart] 78763000
+[timestart] 31773000
 [size] 1333 600
 [pos] -1 -1
-*-17.820602 94200000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+*-17.989941 32280000 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 [markername] AA
 [markername] BB
 [markername] CC
@@ -52,9 +52,7 @@ dev_tb.dut.IREQ
 dev_tb.dut.IACK
 @22
 dev_tb.dut.DA[31:0]
-@23
 dev_tb.dut.DD_I[31:0]
-@22
 dev_tb.dut.DD_O[31:0]
 @28
 dev_tb.dut.DBE[3:0]
@@ -63,8 +61,36 @@ dev_tb.dut.DREQ
 dev_tb.dut.DACK
 @800200
 -dut_mem
+@c00200
+-wb
+@28
+dev_tb.dut_mem.wb_full
+dev_tb.dut_mem.wb_empty
+dev_tb.dut_mem.wb_rptr
+dev_tb.dut_mem.wb_wptr
+dev_tb.dut_mem.wb_write
+dev_tb.dut_mem.wb_read
+@1401200
+-wb
+@c00200
+-bm
+@28
+dev_tb.dut_mem.bm_sel_wb
+@22
+dev_tb.dut_mem.bm_ebi_a[31:0]
+dev_tb.dut_mem.bm_ebi_do[31:0]
+@28
+dev_tb.dut_mem.bm_ebi_bc[1:0]
+@22
+dev_tb.dut_mem.bm_ebi_be[3:0]
+@28
+dev_tb.dut_mem.bm_ebi_wr
+dev_tb.dut_mem.bm_ebi_req
+dev_tb.dut_mem.bm_ebi_ack
+@1401200
+-bm
 @24
-dev_tb.dut_mem.st[2:0]
+dev_tb.dut_mem.ebst[2:0]
 @22
 dev_tb.dut_mem.A[31:0]
 dev_tb.dut_mem.D_I[31:0]
@@ -73,7 +99,9 @@ dev_tb.dut_mem.D_O[31:0]
 dev_tb.dut_mem.BEn[3:0]
 dev_tb.dut_mem.DAn
 dev_tb.dut_mem.MRQn
+@29
 dev_tb.dut_mem.RW
+@28
 dev_tb.dut_mem.BCYSTn
 dev_tb.dut_mem.READYn
 dev_tb.dut_mem.SZRQn
