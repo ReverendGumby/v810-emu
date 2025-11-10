@@ -170,17 +170,42 @@ logic           if_ins32_fetch_hi;
 //////////////////////////////////////////////////////////////////////
 // Instruction memory interface
 
-logic [31:0]    imi_a;
-logic [31:0]    imi_d;
+logic [31:0]    imi_a, imi_an;
+logic [31:0]    imi_d, imi_dbuf;
 logic [15:0]    idrh;   // last high halfword fetched
+logic           imi_a_new;
+logic           imi_incomplete;
 
 assign IA = imi_a;
-assign imi_d = ID;
+assign IREQ = RESn & imi_a_new;
+
+always @* begin
+    imi_d = imi_dbuf;
+    if (IACK)
+        imi_d = ID;
+end
 
 always @(posedge CLK) if (CE) begin
-    if (~if_stall)
-        idrh <= imi_d[31:16];
+    if (~imi_incomplete) begin
+        imi_a <= imi_an;
+        imi_a_new <= ~RESn | (imi_a != imi_an) | (imi_a_new & ~IACK);
+    end
+    if (IACK)
+        imi_dbuf <= imi_d;
 end
+
+always @(posedge CLK) if (CE) begin
+    if (~if_stall) begin
+        idrh <= imi_d[31:16];
+    end
+end
+
+assign imi_incomplete = IREQ & ~IACK;
+
+// Stall pipeline while memory access completes
+assign if_stall = imi_incomplete;
+assign id_stall = imi_incomplete;
+assign ex_flush = imi_incomplete;
 
 //////////////////////////////////////////////////////////////////////
 // Program Counter
@@ -243,14 +268,15 @@ function if_is_ins32(input [15:0] ins);
     endcase
 endfunction
 
-always @(posedge CLK) if (CE) begin
+always @* begin
+    imi_an = imi_a;
     if (~RESn)
-        imi_a <= pc;
+        imi_an = pc;
     else if (~if_stall) begin
         if (if_imi_a2 & ~if_pc_set)
-            imi_a <= pcn + 2'd2;
+            imi_an = pcn + 2'd2;
         else
-            imi_a <= pcn;
+            imi_an = pcn;
     end
 end
 
@@ -273,10 +299,10 @@ always @* begin
 
     casex ({pc[1], if_wrapped, if_pdhi_ins32, if_pdlo_ins32})
         4'b0000,
-        4'b1000,
-        4'b110x:
+        4'b100x:
             ;
-        4'b00x1:    begin
+        4'b00x1,
+        4'b110x:    begin
             if_pc_inc4 = '1;
         end
         4'b0010:    begin
@@ -297,16 +323,26 @@ end
 
 assign if_ir_swap = pc[1];
 assign if_imi_a2 = if_wrap;
-assign if_pc_inc = ~if_ins32_fetch_hi;
+assign if_pc_inc = ~(if_ins32_fetch_hi | imi_incomplete);
+
+logic if_ins32_incomplete;
 
 always @(posedge CLK) if (CE) begin
     if (~RESn) begin
         if_wrapped <= '0;
+        if_ins32_incomplete <= '0;
     end
-    else if (~if_stall) begin
-        if_wrapped <= if_wrap & ~if_pc_set;
+    else begin
+        if (~if_stall) begin
+            if_wrapped <= if_wrap & ~if_pc_set;
+            if_ins32_incomplete <= if_ins32_fetch_hi;
+        end
     end
 end
+
+// Stall pipeline while 32-bit instruction fetch completes
+assign id_stall = if_ins32_incomplete;
+assign ex_flush = if_ins32_incomplete;
 
 //////////////////////////////////////////////////////////////////////
 // Instruction Register

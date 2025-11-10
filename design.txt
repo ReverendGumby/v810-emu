@@ -16,13 +16,13 @@ irh/l:      Instruction to forward to ID
 PCi:        Value to add to PC. PCn = PC + PCi
 ia:         Next address to issue to I-bus (bits 1:0 are ignored)
 wrap:       We fetched the low halfword of a 32-bit ins.
-flush:      IF incomplete; needs to fetch high halfword. Send '0 to ID.
+flush:      IF incomplete; needs to fetch high halfword. Stall ID.
 
 
 PC1  wrapped  pdh32  pdl32 |  irh  irl   PCi  ia     wrap  flush
 ----------------------------------------------------------------
 0    0        0      0     |  'X   pdl   2    PCn    0     0
-1    0        0      0     |  'X   pdh   2    PCn    0     0
+1    0        0      x     |  'X   pdh   2    PCn    0     0
 
 0    0        x      1     |  pdh  pdl   4    PCn    0     0
 0    0        1      0     |  'X   pdl   2    PCn+2  1     0

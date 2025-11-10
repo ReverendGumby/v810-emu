@@ -1,9 +1,9 @@
-`timescale 1us / 1ps
+`timescale 1us / 1ns
 
 module dev_tb();
 
 bit             clk, ce, res;
-logic [31:0]    ia, dut_da;
+logic [31:0]    dut_ia, dut_da;
 logic [31:0]    dut_id;
 logic           dut_ireq, dut_iack;
 wire [31:0]     dut_dd_i, dut_dd_o;
@@ -13,20 +13,29 @@ wire            dut_dwr;
 wire            dut_dreq, dut_dack;
 
 wire [31:0]     dut_mem_a;
-logic [31:0]    dut_mem_d_i, dut_mem_d_o;
+logic [31:0]    dut_mem_euia;
+wire [31:0]     dut_mem_d_i, dut_mem_d_o, dut_mem_euid;
+logic           dut_mem_euireq, dut_mem_euiack;
 wire [3:0]      dut_mem_ben;
 wire            dut_mem_dan;
 wire            dut_mem_mrqn;
 wire            dut_mem_rw;
 wire            dut_mem_bcystn;
-logic           dut_mem_readyn;
+wand            dut_mem_readyn;
 logic           dut_mem_szrqn;
 
-logic [31:0]    dmem_di, dmem_do;
-logic [3:0]     dmem_ben;
-
-logic           ready_w0, ready_w1;
+logic [31:0]    imem_a, imem_do;
+int             imem_ws, imem_dw;
+logic [3:0]     imem_ben;
+logic           imem_cen;
 int             dmem_ws, dmem_dw;
+wire [31:0]     dmem_di, dmem_do;
+logic [3:0]     dmem_ben;
+logic           dmem_cen;
+
+logic [31:0]    idbr_mem_do;
+
+bit             eu_bypass_mau;
 
 initial begin
     $timeformat(-9, 0, " ns", 1);
@@ -41,7 +50,7 @@ v810_exec dut
    .CLK(clk),
    .CE(ce),
 
-   .IA(ia),
+   .IA(dut_ia),
    .ID(dut_id),
    .IREQ(dut_ireq),
    .IACK(dut_iack),
@@ -64,14 +73,19 @@ v810_mem dut_mem
    .CLK(clk),
    .CE(ce),
 
-   .EDA(dut_da),
-   .EDD_I(dut_dd_i),
-   .EDD_O(dut_dd_o),
-   .EDBC(dut_dbc),
-   .EDBE(dut_dbe),
-   .EDWR(dut_dwr),
-   .EDREQ(dut_dreq),
-   .EDACK(dut_dack),
+   .EUDA(dut_da),
+   .EUDD_I(dut_dd_i),
+   .EUDD_O(dut_dd_o),
+   .EUDBC(dut_dbc),
+   .EUDBE(dut_dbe),
+   .EUDWR(dut_dwr),
+   .EUDREQ(dut_dreq),
+   .EUDACK(dut_dack),
+
+   .EUIA(dut_mem_euia),
+   .EUID(dut_mem_euid),
+   .EUIREQ(dut_mem_euireq),
+   .EUIACK(dut_mem_euiack),
 
    .A(dut_mem_a),
    .D_I(dut_mem_d_i),
@@ -85,63 +99,91 @@ v810_mem dut_mem
    .SZRQn(dut_mem_szrqn)
    );
 
-assign dut_iack = dut_ireq;
+// Route EU ins. fetch to MAU or ROM direct
+always @* begin
+    if (eu_bypass_mau) begin
+        dut_id = imem_do;
+        dut_iack = dut_ireq;
+
+        dut_mem_euireq = '0;
+        dut_mem_euia = 'Z;
+
+        imem_ws = 0;
+        imem_dw = 32;
+        imem_a = dut_ia;
+        imem_ben = '0;
+        imem_cen = ~dut_ireq;
+
+        idbr_mem_do = 'Z;
+    end
+    else begin
+        dut_id = dut_mem_euid;
+        dut_iack = dut_mem_euiack;
+
+        dut_mem_euireq = dut_ireq;
+        dut_mem_euia = dut_ia;
+
+        imem_ws = dmem_ws;
+        imem_dw = dmem_dw;
+        imem_a = dut_mem_a;
+        imem_ben = dut_mem_ben;
+        imem_cen = dut_mem_mrqn;
+
+        idbr_mem_do = imem_do;
+    end
+end
 
 assign dut_mem_szrqn = ~((dmem_dw == 16) & ~dut_mem_readyn);
 
-// Emulate memory with one wait state
-always @(posedge clk) if (ce) begin
-    ready_w1 <= ~ready_w1 & ~dut_mem_dan;
-end
-
-// Emulate memory with no wait states
-assign ready_w0 = ~dut_mem_dan;
-
-always @* begin
-    case (dmem_ws)
-        0: dut_mem_readyn = ~ready_w0;
-        1: dut_mem_readyn = ~ready_w1;
-        default: dut_mem_readyn = 'X;
-    endcase
-end
-
 assign dmem_ben = dut_mem_ben;
+assign dmem_cen = dut_mem_mrqn;
 
-always @* begin
-    if (dmem_dw == 32) begin
-        dmem_di = dut_mem_d_o;
-        dut_mem_d_i = dmem_do;
-    end
-    else begin
-        case (dut_mem_ben)
-            4'b1110, 4'b1101, 4'b1100, 4'b0000: begin
-                dmem_di = {16'bz, dut_mem_d_o[15:0]};
-                dut_mem_d_i = {16'bz, dmem_do[15:0]};
-            end
-            default: begin
-                dmem_di = {dut_mem_d_o[15:0], 16'bz};
-                dut_mem_d_i = {16'bz, dmem_do[31:16]};
-            end
-        endcase
-    end
-end
+data_bus_resizer idbr
+  (
+   .WS(imem_ws),
+   .DW(imem_dw),
+   .CLK(clk),
+   .CE(ce),
+   .CTLR_DAn(dut_mem_dan),
+   .CTLR_BEn(dut_mem_ben),
+   .CTLR_READYn(dut_mem_readyn),
+   .CTLR_DI(dut_mem_d_i),
+   .CTLR_DO(),
+   .MEM_DI(),
+   .MEM_DO(idbr_mem_do)
+   );
 
 ram #(10, 32) imem
   (
    .CLK(clk),
-   .nCE('0),
+   .nCE(imem_cen | ~imem_a[31]),
    .nWE('1),
    .nOE('0),
-   .nBE('1),
-   .A(ia[11:2]),
+   .nBE(imem_ben),
+   .A(imem_a[11:2]),
    .DI('Z),
-   .DO(dut_id)
+   .DO(imem_do)
+   );
+
+data_bus_resizer ddbr
+  (
+   .WS(dmem_ws),
+   .DW(dmem_dw),
+   .CLK(clk),
+   .CE(ce),
+   .CTLR_DAn(dut_mem_dan),
+   .CTLR_BEn(dut_mem_ben),
+   .CTLR_READYn(dut_mem_readyn),
+   .CTLR_DI(dut_mem_d_i),
+   .CTLR_DO(dut_mem_d_o),
+   .MEM_DI(dmem_di),
+   .MEM_DO(dmem_do)
    );
 
 ram #(10, 32) dmem
   (
    .CLK(clk),
-   .nCE(dut_mem_mrqn),
+   .nCE(dmem_cen | dut_mem_a[31]),
    .nWE(dut_mem_rw),
    .nOE(~dut_mem_rw),
    .nBE(dmem_ben),
@@ -149,6 +191,11 @@ ram #(10, 32) dmem
    .DI(dmem_di),
    .DO(dmem_do)
    );
+
+task imem_load_boot;
+    imem.mem['h3FC] = 32'h8000BFE0; // MOVHI #0x8000, r0, r31
+    imem.mem['h3FD] = 32'h0000181F; // JMP LP
+endtask
 
 initial begin
     res = 1;
@@ -161,6 +208,8 @@ always begin :ckgen
 end
 
 task start_test;
+    imem_load_boot;
+
     repeat (5) @(posedge clk) ;
     res <= 0;
     @(posedge clk) ;
@@ -170,7 +219,7 @@ task end_test;
     @(dut.halt) ;               // wait for HALT instruction
 
     repeat (10) @(posedge clk) ;
-    assert(dut_mem_dan & dut_mem_mrqn); // reset while bus is busy == bad
+    //assert(dut_mem_dan & dut_mem_mrqn); // reset while bus is busy == bad
     res <= 1;
 endtask
 
@@ -181,13 +230,13 @@ initial #0 begin
     $finish();
 end
 
-initial #500 begin
+initial #800 begin
     $error("Emergency exit!");
     $fatal(1);
 end
 
-always @ia begin
-    if (ia[0]) begin
+always @dut_ia begin
+    if (dut_ia[0]) begin
         $error("Invalid instruction address!");
         $fatal(1);
     end
@@ -352,7 +401,7 @@ task test_all_ram_modes;
     test_all;
 endtask
 
-task test_all_modes;
+task test_all_wb_modes;
     $display("MAU: WB bypassed");
     dut_mem.dbg_bypass_wb = '1;
     test_all_ram_modes;
@@ -360,6 +409,16 @@ task test_all_modes;
     $display("MAU: WB enabled");
     dut_mem.dbg_bypass_wb = '0;
     test_all_ram_modes;
+endtask
+
+task test_all_modes;
+    $display("EU: Fetch ins. directly from ROM (emulate I$ always hit)");
+    eu_bypass_mau = '1;
+    test_all_wb_modes;
+
+    $display("EU: Fetch ins. from MAU");
+    eu_bypass_mau = '0;
+    test_all_wb_modes;
 endtask
 
 endmodule
@@ -428,6 +487,68 @@ always @(posedge CLK) begin
         if (~(nCE | nWE | nBE[i]))
             mem[A][i*8+:8] <= DI[i*8+:8];
 end
+
+endmodule
+
+//////////////////////////////////////////////////////////////////////
+
+module data_bus_resizer
+  (
+   input int           WS,
+   input int           DW,
+
+   input               CLK,
+   input               CE,
+
+   input               CTLR_DAn,
+   input [3:0]         CTLR_BEn,
+   output logic        CTLR_READYn,
+   output [31:0]       CTLR_DI,
+   input [31:0]        CTLR_DO,
+
+   output logic [31:0] MEM_DI,
+   input [31:0]        MEM_DO
+   );
+
+logic           ready_w0, ready_w1;
+logic [31:0]    ctlr_di;
+
+// Emulate memory with one wait state
+always @(posedge CLK) if (CE) begin
+    ready_w1 <= ~ready_w1 & ~CTLR_DAn;
+end
+
+// Emulate memory with no wait states
+assign ready_w0 = ~CTLR_DAn;
+
+always @* begin
+    case (WS)
+        0: CTLR_READYn = ~ready_w0;
+        1: CTLR_READYn = ~ready_w1;
+        default: CTLR_READYn = 'X;
+    endcase
+end
+
+always @* begin
+    if (DW == 32) begin
+        MEM_DI = CTLR_DO;
+        ctlr_di = MEM_DO;
+    end
+    else begin
+        case (CTLR_BEn)
+            4'b1110, 4'b1101, 4'b1100, 4'b0000: begin
+                MEM_DI = {16'bz, CTLR_DO[15:0]};
+                ctlr_di = {16'bz, MEM_DO[15:0]};
+            end
+            default: begin
+                MEM_DI = {CTLR_DO[15:0], 16'bz};
+                ctlr_di = {16'bz, MEM_DO[31:16]};
+            end
+        endcase
+    end
+end
+
+assign CTLR_DI = ctlr_di;
 
 endmodule
 

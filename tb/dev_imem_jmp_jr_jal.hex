@@ -2,7 +2,8 @@
 
 // SUB / AND trigger data hazards during branch
 
-A060 0011 // MOVEA #17, r0, r3
+BC60 8000 // MOVHI #0x8000, r0, r3
+A063 0011 // MOVEA #17, r3, r3
 0841 // SUB r1, r2  r2 = 1
 1803 // JMP r3
 34A2 // AND r2, r5  r5 = 1
