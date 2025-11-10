@@ -148,7 +148,7 @@ always @* begin
     end
     else /*if (bm_sel_eui)*/ begin
         bm_ebi_a = EUIA;
-        bm_ebi_do = 'Z;
+        bm_ebi_do = 'X;
         bm_ebi_bc = 2'd3;
         bm_ebi_be = '1;
         bm_ebi_wr = '0;
@@ -157,11 +157,11 @@ always @* begin
 end
 
 assign EUIACK = ~(bm_sel_wb | bm_sel_eud) & bm_ebi_ack;
-assign EUID = ~(bm_sel_wb | bm_sel_eud) ? bm_ebi_di : 'Z;
+assign EUID = ~(bm_sel_wb | bm_sel_eud) ? bm_ebi_di : 'X;
 
 assign EUDACK = (bm_sel_wb | (~dbg_bypass_wb & EUDWR)) ?
                 wb_write : EUDREQ & bm_ebi_ack;
-assign EUDD_I = (~bm_sel_wb & bm_sel_eud) ? bm_ebi_di : 'Z;
+assign EUDD_I = (~bm_sel_wb & bm_sel_eud) ? bm_ebi_di : 'X;
 
 
 //////////////////////////////////////////////////////////////////////
