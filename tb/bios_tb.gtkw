@@ -1,0 +1,263 @@
+[*]
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Tue Nov 11 07:27:52 2025
+[*]
+[dumpfile] "/Users/dhunter/src/v810-emu/tb/bios_tb.vcd"
+[dumpfile_mtime] "Tue Nov 11 07:19:24 2025"
+[dumpfile_size] 16028061
+[savefile] "/Users/dhunter/src/v810-emu/tb/bios_tb.gtkw"
+[timestart] 0
+[size] 1333 768
+[pos] -1 -1
+*-12.400230 10480 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+[markername] AA
+[markername] BB
+[markername] CC
+[markername] DD
+[markername] EE
+[markername] FF
+[markername] GG
+[markername] HH
+[markername] II
+[markername] JJ
+[markername] KK
+[markername] LL
+[markername] MM
+[markername] NN
+[markername] OO
+[markername] PP
+[markername] QQ
+[markername] RR
+[markername] SS
+[markername] TT
+[markername] UU
+[markername] VV
+[markername] WW
+[markername] XX
+[markername] YY
+[markername] ZZ
+[treeopen] bios_tb.
+[sst_width] 255
+[signals_width] 283
+[sst_expanded] 1
+[sst_vpaned_height] 218
+@28
+bios_tb.ram_cen
+bios_tb.rom_cen
+@c00200
+-dut_mem
+@800200
+-wb
+@28
+bios_tb.dut_mem.wb_full
+bios_tb.dut_mem.wb_empty
+bios_tb.dut_mem.wb_rptr
+bios_tb.dut_mem.wb_wptr
+bios_tb.dut_mem.wb_write
+bios_tb.dut_mem.wb_read
+@1000200
+-wb
+@800200
+-bm
+@28
+bios_tb.dut_mem.bm_sel_wb
+bios_tb.dut_mem.bm_sel_eud
+bios_tb.dut_mem.bm_sel_eui
+@22
+bios_tb.dut_mem.bm_ebi_a[31:0]
+bios_tb.dut_mem.bm_ebi_do[31:0]
+@28
+bios_tb.dut_mem.bm_ebi_bc[1:0]
+@22
+bios_tb.dut_mem.bm_ebi_be[3:0]
+@28
+bios_tb.dut_mem.bm_ebi_wr
+bios_tb.dut_mem.bm_ebi_req
+bios_tb.dut_mem.bm_ebi_ack
+@1000200
+-bm
+@24
+bios_tb.dut_mem.ebst[2:0]
+@22
+bios_tb.dut_mem.A[31:0]
+bios_tb.dut_mem.D_I[31:0]
+bios_tb.dut_mem.D_O[31:0]
+@28
+bios_tb.dut_mem.BEn[3:0]
+bios_tb.dut_mem.DAn
+bios_tb.dut_mem.MRQn
+bios_tb.dut_mem.RW
+bios_tb.dut_mem.BCYSTn
+bios_tb.dut_mem.READYn
+bios_tb.dut_mem.SZRQn
+@1401200
+-dut_mem
+@28
+bios_tb.dut.RESn
+bios_tb.dut.CLK
+@22
+bios_tb.dut.IA[31:0]
+bios_tb.dut.ID[31:0]
+@28
+bios_tb.dut.IREQ
+bios_tb.dut.IACK
+@22
+bios_tb.dut.DA[31:0]
+bios_tb.dut.DD_I[31:0]
+bios_tb.dut.DD_O[31:0]
+@28
+bios_tb.dut.DBE[3:0]
+bios_tb.dut.DWR
+bios_tb.dut.DREQ
+bios_tb.dut.DACK
+@c00201
+-if
+@29
+bios_tb.dut.if_stall
+bios_tb.dut.if_flush
+bios_tb.dut.imi_a_new
+bios_tb.dut.imi_incomplete
+bios_tb.dut.if_pc_inc
+bios_tb.dut.if_pc_inc4
+bios_tb.dut.if_pc_set
+bios_tb.dut.if_pdlo_ins32
+bios_tb.dut.if_pdhi_ins32
+bios_tb.dut.if_ir_swap
+bios_tb.dut.if_imi_a2
+bios_tb.dut.if_wrap
+bios_tb.dut.if_wrapped
+bios_tb.dut.if_ins32_fetch_hi
+bios_tb.dut.if_ins32_incomplete
+@23
+bios_tb.dut.pc[31:0]
+bios_tb.dut.pcn[31:0]
+bios_tb.dut.pd[31:0]
+bios_tb.dut.ir[31:0]
+@1401201
+-if
+@800200
+-id
+@28
+bios_tb.dut.id_stall
+bios_tb.dut.id_flush
+@22
+bios_tb.dut.ifid_pc[31:0]
+bios_tb.dut.ifid_ir[31:0]
+@800200
+-rmem
+@22
+bios_tb.dut.rmem00[31:0]
+bios_tb.dut.rmem01[31:0]
+bios_tb.dut.rmem02[31:0]
+bios_tb.dut.rmem03[31:0]
+bios_tb.dut.rmem04[31:0]
+bios_tb.dut.rmem05[31:0]
+bios_tb.dut.rmem06[31:0]
+bios_tb.dut.rmem07[31:0]
+bios_tb.dut.rmem08[31:0]
+bios_tb.dut.rmem09[31:0]
+bios_tb.dut.rmem10[31:0]
+bios_tb.dut.rmem11[31:0]
+bios_tb.dut.rmem12[31:0]
+bios_tb.dut.rmem13[31:0]
+bios_tb.dut.rmem14[31:0]
+bios_tb.dut.rmem15[31:0]
+bios_tb.dut.rmem16[31:0]
+bios_tb.dut.rmem17[31:0]
+bios_tb.dut.rmem18[31:0]
+bios_tb.dut.rmem19[31:0]
+bios_tb.dut.rmem20[31:0]
+bios_tb.dut.rmem21[31:0]
+bios_tb.dut.rmem22[31:0]
+bios_tb.dut.rmem23[31:0]
+bios_tb.dut.rmem24[31:0]
+bios_tb.dut.rmem25[31:0]
+bios_tb.dut.rmem26[31:0]
+bios_tb.dut.rmem27[31:0]
+bios_tb.dut.rmem28[31:0]
+bios_tb.dut.rmem29[31:0]
+bios_tb.dut.rmem30[31:0]
+bios_tb.dut.rmem31[31:0]
+@1000200
+-rmem
+@22
+bios_tb.dut.rf_ra1[4:0]
+bios_tb.dut.rf_ra2[4:0]
+bios_tb.dut.rf_rd1[31:0]
+bios_tb.dut.rf_rd2[31:0]
+bios_tb.dut.rf_wa[4:0]
+bios_tb.dut.rf_wd[31:0]
+@28
+bios_tb.dut.rf_we
+@1000200
+-id
+@24
+bios_tb.dut.id_ccnt[5:0]
+@800200
+-ex
+@28
+bios_tb.dut.ex_stall
+bios_tb.dut.ex_flush
+@22
+bios_tb.dut.idex_pc[31:0]
+bios_tb.dut.idex_ir[31:0]
+bios_tb.dut.idex_rf_rd1[31:0]
+bios_tb.dut.idex_rf_rd2[31:0]
+bios_tb.dut.idex_rf_wa[4:0]
+bios_tb.dut.idex_ctl[25:0]
+bios_tb.dut.alu_in1[31:0]
+bios_tb.dut.alu_in2[31:0]
+bios_tb.dut.alu_op[3:0]
+bios_tb.dut.alu_out[31:0]
+@28
+bios_tb.dut.alu_fl[3:0]
+@22
+bios_tb.dut.bcond_match
+@28
+bios_tb.dut.branch_taken
+@1000200
+-ex
+@800200
+-ma
+@28
+bios_tb.dut.ma_flush
+@22
+bios_tb.dut.exma_rf_wa[4:0]
+bios_tb.dut.exma_rf_rd2[31:0]
+bios_tb.dut.exma_alu_out[31:0]
+@28
+bios_tb.dut.exma_alu_fl[3:0]
+@22
+bios_tb.dut.exma_ctl[9:0]
+@28
+bios_tb.dut.psw[3:0]
+@22
+bios_tb.dut.ma_di[31:0]
+bios_tb.dut.ma_do[31:0]
+@1000200
+-ma
+@800200
+-wb
+@22
+bios_tb.dut.mawb_alu_out[31:0]
+bios_tb.dut.mawb_mem_rd[31:0]
+@28
+bios_tb.dut.mawb_mem_bsel[1:0]
+@22
+bios_tb.dut.mawb_rf_wa[4:0]
+bios_tb.dut.mawb_ctl[3:0]
+bios_tb.dut.wb_ldmem[31:0]
+@1000200
+-wb
+@800200
+-hazard
+@28
+bios_tb.dut.haz_data_ex
+bios_tb.dut.haz_data_ma
+bios_tb.dut.haz_data
+bios_tb.dut.haz_flag_ex
+bios_tb.dut.haz_flag
+@1000200
+-hazard
+[pattern_trace] 1
+[pattern_trace] 0

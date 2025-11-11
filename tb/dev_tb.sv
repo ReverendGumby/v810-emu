@@ -22,7 +22,7 @@ wire            dut_mem_mrqn;
 wire            dut_mem_rw;
 wire            dut_mem_bcystn;
 wand            dut_mem_readyn;
-logic           dut_mem_szrqn;
+wand            dut_mem_szrqn;
 
 logic [31:0]    imem_a, imem_do;
 int             imem_ws, imem_dw;
@@ -133,7 +133,7 @@ always @* begin
     end
 end
 
-assign dut_mem_szrqn = ~((dmem_dw == 16) & ~dut_mem_readyn);
+assign dut_mem_szrqn = '1;
 
 assign dmem_ben = dut_mem_ben;
 assign dmem_cen = dut_mem_mrqn;
@@ -147,6 +147,7 @@ data_bus_resizer idbr
    .CTLR_DAn(dut_mem_dan),
    .CTLR_BEn(dut_mem_ben),
    .CTLR_READYn(dut_mem_readyn),
+   .CTLR_SZRQn(dut_mem_szrqn),
    .CTLR_DI(dut_mem_d_i),
    .CTLR_DO(),
    .MEM_DI(),
@@ -174,6 +175,7 @@ data_bus_resizer ddbr
    .CTLR_DAn(dut_mem_dan),
    .CTLR_BEn(dut_mem_ben),
    .CTLR_READYn(dut_mem_readyn),
+   .CTLR_SZRQn(dut_mem_szrqn),
    .CTLR_DI(dut_mem_d_i),
    .CTLR_DO(dut_mem_d_o),
    .MEM_DI(dmem_di),
@@ -425,133 +427,6 @@ endmodule
 
 //////////////////////////////////////////////////////////////////////
 
-module ram
-  #(parameter AW,
-    parameter DW)
-  (
-   input            CLK,
-   input            nCE,
-   input            nWE,
-   input            nOE,
-   input [DW/8-1:0] nBE,
-   input [AW-1:0]   A,
-   input [DW-1:0]   DI,
-   output [DW-1:0]  DO
- );
-
-localparam SIZE = 1 << AW;
-
-bit [DW-1:0]    mem [0:SIZE-1];
-bit [DW-1:0]    dor;
-
-task clear;
-    for (int i = 0; i < SIZE; i++)
-        mem[i] = '0;
-endtask
-
-task load_hex(string fn);
-    clear();
-    $readmemh(fn, mem);
-endtask
-
-task load_hex16(string fn);
-bit [15:0] tmp [SIZE * 2];
-    assert(DW / 16 == 2);
-    //$display("Loading %s", fn);
-    for (int i = 0; i < SIZE * 2; i++)
-        tmp[i] = '0;
-    $readmemh(fn, tmp);
-    for (int i = 0; i < SIZE * 2; i++)
-        mem[i / 2][i[0]*16+:16] = tmp[i];
-endtask
-
-task load_bin(string fn);
-integer fin, code;
-    begin
-        clear();
-        fin = $fopen(fn, "r");
-        assert(fin != 0) else $fatal(1, "unable to open file");
-        code = $fread(mem, fin, 0, SIZE);
-        assert(code == SIZE) else $fatal(1, "file too short");
-    end
-endtask
-
-always @(negedge CLK) begin
-    dor <= mem[A];
-end
-
-assign DO = ~(nCE | nOE) ? dor : {DW{1'bz}};
-
-always @(posedge CLK) begin
-    for (int i = 0; i < DW/8; i++)
-        if (~(nCE | nWE | nBE[i]))
-            mem[A][i*8+:8] <= DI[i*8+:8];
-end
-
-endmodule
-
-//////////////////////////////////////////////////////////////////////
-
-module data_bus_resizer
-  (
-   input int           WS,
-   input int           DW,
-
-   input               CLK,
-   input               CE,
-
-   input               CTLR_DAn,
-   input [3:0]         CTLR_BEn,
-   output logic        CTLR_READYn,
-   output [31:0]       CTLR_DI,
-   input [31:0]        CTLR_DO,
-
-   output logic [31:0] MEM_DI,
-   input [31:0]        MEM_DO
-   );
-
-logic           ready_w0, ready_w1;
-logic [31:0]    ctlr_di;
-
-// Emulate memory with one wait state
-always @(posedge CLK) if (CE) begin
-    ready_w1 <= ~ready_w1 & ~CTLR_DAn;
-end
-
-// Emulate memory with no wait states
-assign ready_w0 = ~CTLR_DAn;
-
-always @* begin
-    case (WS)
-        0: CTLR_READYn = ~ready_w0;
-        1: CTLR_READYn = ~ready_w1;
-        default: CTLR_READYn = 'X;
-    endcase
-end
-
-always @* begin
-    if (DW == 32) begin
-        MEM_DI = CTLR_DO;
-        ctlr_di = MEM_DO;
-    end
-    else begin
-        case (CTLR_BEn)
-            4'b1110, 4'b1101, 4'b1100, 4'b0000: begin
-                MEM_DI = {16'bz, CTLR_DO[15:0]};
-                ctlr_di = {16'bz, MEM_DO[15:0]};
-            end
-            default: begin
-                MEM_DI = {CTLR_DO[15:0], 16'bz};
-                ctlr_di = {16'bz, MEM_DO[31:16]};
-            end
-        endcase
-    end
-end
-
-assign CTLR_DI = ctlr_di;
-
-endmodule
-
 // Local Variables:
-// compile-command: "iverilog -g2012 -grelative-include -s dev_tb -o dev_tb.vvp ../v810_exec.sv ../v810_mem.sv dev_tb.sv && ./dev_tb.vvp"
+// compile-command: "iverilog -g2012 -grelative-include -s dev_tb -o dev_tb.vvp ../v810_exec.sv ../v810_mem.sv ram.sv data_bus_resizer.sv dev_tb.sv && ./dev_tb.vvp"
 // End:
