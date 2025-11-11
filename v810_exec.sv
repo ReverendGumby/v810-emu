@@ -185,10 +185,14 @@ always @* begin
         imi_d = ID;
 end
 
+// Compare word address, to avoid fetching the same word.
+// TODO: Compare halfword address if SIZ16B=1
+wire imi_a_eq_an = imi_a[31:2] == imi_an[31:2];
+
 always @(posedge CLK) if (CE) begin
     if (~imi_incomplete) begin
         imi_a <= imi_an;
-        imi_a_new <= ~RESn | (imi_a != imi_an) | (imi_a_new & ~IACK);
+        imi_a_new <= ~RESn | ~imi_a_eq_an | (imi_a_new & ~IACK);
     end
     if (IACK)
         imi_dbuf <= imi_d;
