@@ -239,7 +239,7 @@ always @(posedge CLK) if (CE) begin
     if (~RESn) begin
         pc <= 32'hFFFFFFF0;
     end
-    else if (~(if_stall | if_ins32_fetch_hi)) begin
+    else if (~if_stall) begin
         pc <= pcn;
     end
 end
@@ -329,6 +329,7 @@ assign if_ir_swap = pc[1];
 assign if_imi_a2 = if_wrap;
 assign if_pc_inc = ~(if_ins32_fetch_hi | imi_incomplete);
 
+// TODO: Remove this
 logic if_ins32_incomplete;
 
 always @(posedge CLK) if (CE) begin
@@ -345,8 +346,8 @@ always @(posedge CLK) if (CE) begin
 end
 
 // Stall pipeline while 32-bit instruction fetch completes
-assign id_stall = if_ins32_incomplete;
-assign ex_flush = if_ins32_incomplete;
+assign id_stall = if_ins32_fetch_hi;
+assign ex_flush = if_ins32_fetch_hi;
 
 //////////////////////////////////////////////////////////////////////
 // Instruction Register
@@ -367,7 +368,7 @@ end
 // IF/ID pipeline register
 
 always @(posedge CLK) if (CE) begin
-    if (~RESn | ~if_stall) begin
+    if (~RESn | ~(if_stall | if_ins32_fetch_hi)) begin
         ifid_pc <= pc;
         ifid_ir <= ir;
     end

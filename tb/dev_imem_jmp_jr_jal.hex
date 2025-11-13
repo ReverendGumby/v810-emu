@@ -2,29 +2,42 @@
 
 // SUB / AND trigger data hazards during branch
 
+4021 // MOV #1, r1          // r1 = 1
+0040 // MOV r0, r2          // r2 = 0
 BC60 8000 // MOVHI #0x8000, r0, r3
-A063 0011 // MOVEA #17, r3, r3
-0841 // SUB r1, r2  r2 = 1
+A063 0021 // MOVEA #0x21, r3, r3
+0841 // SUB r1, r2          // r2 = -1
 1803 // JMP r3
-34A2 // AND r2, r5  r5 = 1
-8A00 // BR .+0
-
-@8
-
-0841 // SUB r1, r2  r2 = 1
-A800 000F // JR 33
-34A2 // AND r2, r5  r5 = 1
+34A2 // AND r2, r5
 8A00 // BR .+0
 
 @10
 
-0841 // SUB r1, r2  r2 = 1
-AC00 0011 // JAL 51
-34A2 // AND r2, r5  r5 = 1
+0841 // SUB r1, r2          // r2 = -2
+A800 001E // JR 0x40
+34A2 // AND r2, r5
+8A00 // BR .+0
+
+@20
+
+0841 // SUB r1, r2          // r2 = -3
+AC00 0021 // JAL 0x63
+3442 // AND r2, r2
+8A3A // BR 0x82
+
+@31
+
+A040 0004 // MOVEA #4, r0, r2   // r2 = 4
+181F // JMP LP
+34A2 // AND r2, r5
+
+@41
+
+AC00 0020 // JAL 0xA2
+AC00 001C // JAL 0xA2
+A040 0005 // MOVEA #5, r0, r2   // r2 = 5
 6800 // HALT
 
-@19
+@51
 
-A040 0005 // MOVEA #5, r0, r2
 181F // JMP LP
-34A2 // AND r2, r5  r5 = 1

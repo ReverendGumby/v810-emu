@@ -212,6 +212,9 @@ end
 task start_test;
     imem_load_boot;
 
+    for (int i = 1; i < 32; i++)
+        dut.rmem[i] = 'X;
+
     repeat (5) @(posedge clk) ;
     res <= 0;
     @(posedge clk) ;
