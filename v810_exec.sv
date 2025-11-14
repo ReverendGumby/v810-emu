@@ -166,6 +166,7 @@ struct packed {
 //////////////////////////////////////////////////////////////////////
 
 logic           if_ins32_fetch_hi;
+wand            if_fetch_en;
 
 //////////////////////////////////////////////////////////////////////
 // Instruction memory interface
@@ -199,12 +200,15 @@ always @(posedge CLK) if (CE) begin
 end
 
 always @(posedge CLK) if (CE) begin
-    if (~if_stall) begin
+    if (if_fetch_en) begin
         idrh <= imi_d[31:16];
     end
 end
 
 assign imi_incomplete = IREQ & ~IACK;
+
+// Disable fetching while memory access completes
+assign if_fetch_en = ~imi_incomplete;
 
 // Stall pipeline while memory access completes
 assign if_stall = imi_incomplete;
@@ -239,7 +243,7 @@ always @(posedge CLK) if (CE) begin
     if (~RESn) begin
         pc <= 32'hFFFFFFF0;
     end
-    else if (~if_stall) begin
+    else if (if_fetch_en) begin
         pc <= pcn;
     end
 end
@@ -276,7 +280,7 @@ always @* begin
     imi_an = imi_a;
     if (~RESn)
         imi_an = pc;
-    else if (~if_stall) begin
+    else if (if_fetch_en) begin
         if (if_imi_a2 & ~if_pc_set)
             imi_an = pcn + 2'd2;
         else
@@ -329,23 +333,19 @@ assign if_ir_swap = pc[1];
 assign if_imi_a2 = if_wrap;
 assign if_pc_inc = ~(if_ins32_fetch_hi | imi_incomplete);
 
-// TODO: Remove this
-logic if_ins32_incomplete;
-
 always @(posedge CLK) if (CE) begin
     if (~RESn) begin
         if_wrapped <= '0;
-        if_ins32_incomplete <= '0;
     end
     else begin
-        if (~if_stall) begin
+        if (if_fetch_en) begin
             if_wrapped <= if_wrap & ~if_pc_set;
-            if_ins32_incomplete <= if_ins32_fetch_hi;
         end
     end
 end
 
-// Stall pipeline while 32-bit instruction fetch completes
+// Stall pipeline while 32-bit instruction fetch completes.
+assign if_stall = if_ins32_fetch_hi;
 assign id_stall = if_ins32_fetch_hi;
 assign ex_flush = if_ins32_fetch_hi;
 
@@ -364,11 +364,15 @@ always @* begin
         ir = '0;
 end
 
+// Disable fetching if the next instruction is ready but cannot be output.
+wire ir_valid = if_pc_inc;
+assign if_fetch_en = ~(ir_valid & if_stall);
+
 //////////////////////////////////////////////////////////////////////
 // IF/ID pipeline register
 
 always @(posedge CLK) if (CE) begin
-    if (~RESn | ~(if_stall | if_ins32_fetch_hi)) begin
+    if (~RESn | ~if_stall) begin
         ifid_pc <= pc;
         ifid_ir <= ir;
     end

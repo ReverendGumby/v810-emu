@@ -115,6 +115,7 @@ bios_tb.dut.DACK
 @29
 bios_tb.dut.if_stall
 bios_tb.dut.if_flush
+dev_tb.dut.if_fetch_en
 bios_tb.dut.imi_a_new
 bios_tb.dut.imi_incomplete
 bios_tb.dut.if_pc_inc
@@ -127,7 +128,6 @@ bios_tb.dut.if_imi_a2
 bios_tb.dut.if_wrap
 bios_tb.dut.if_wrapped
 bios_tb.dut.if_ins32_fetch_hi
-bios_tb.dut.if_ins32_incomplete
 @23
 bios_tb.dut.pc[31:0]
 bios_tb.dut.pcn[31:0]

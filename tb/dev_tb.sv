@@ -150,6 +150,7 @@ data_bus_resizer idbr
    .CTLR_SZRQn(dut_mem_szrqn),
    .CTLR_DI(dut_mem_d_i),
    .CTLR_DO(),
+   .MEM_nCE('0),
    .MEM_DI(),
    .MEM_DO(idbr_mem_do)
    );
@@ -178,6 +179,7 @@ data_bus_resizer ddbr
    .CTLR_SZRQn(dut_mem_szrqn),
    .CTLR_DI(dut_mem_d_i),
    .CTLR_DO(dut_mem_d_o),
+   .MEM_nCE('0),
    .MEM_DI(dmem_di),
    .MEM_DO(dmem_do)
    );

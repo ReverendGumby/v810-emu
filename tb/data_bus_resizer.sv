@@ -13,6 +13,7 @@ module data_bus_resizer
    output [31:0]       CTLR_DI,
    input [31:0]        CTLR_DO,
 
+   input               MEM_nCE,
    output logic [31:0] MEM_DI,
    input [31:0]        MEM_DO
    );
@@ -22,11 +23,11 @@ logic [31:0]    ctlr_di;
 
 // Emulate memory with one wait state
 always @(posedge CLK) if (CE) begin
-    ready_w1 <= ~ready_w1 & ~CTLR_DAn;
+    ready_w1 <= ~ready_w1 & ~CTLR_DAn & ~MEM_nCE;
 end
 
 // Emulate memory with no wait states
-assign ready_w0 = ~CTLR_DAn;
+assign ready_w0 = ~CTLR_DAn & ~MEM_nCE;
 
 always @* begin
     case (WS)

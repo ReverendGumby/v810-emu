@@ -111,6 +111,7 @@ dev_tb.dut.DACK
 @28
 dev_tb.dut.if_stall
 dev_tb.dut.if_flush
+dev_tb.dut.if_fetch_en
 dev_tb.dut.imi_a_new
 dev_tb.dut.imi_incomplete
 dev_tb.dut.if_pc_inc
@@ -123,8 +124,6 @@ dev_tb.dut.if_imi_a2
 dev_tb.dut.if_wrap
 dev_tb.dut.if_wrapped
 dev_tb.dut.if_ins32_fetch_hi
-@29
-dev_tb.dut.if_ins32_incomplete
 @22
 dev_tb.dut.pc[31:0]
 dev_tb.dut.pcn[31:0]

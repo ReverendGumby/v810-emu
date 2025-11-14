@@ -102,11 +102,12 @@ data_bus_resizer rom_dbr
    .CTLR_SZRQn(mem_szrqn),
    .CTLR_DI(mem_d_i),
    .CTLR_DO(),
+   .MEM_nCE(rom_cen),
    .MEM_DI(),
    .MEM_DO(rom_do)
    );
 
-ram #(18, 32) rom
+ram #(18, 32) rombios
   (
    .CLK(clk),
    .nCE(rom_cen),
@@ -146,7 +147,7 @@ end
 initial #0 begin
     rom_ws = 0;
     rom_dw = 16;
-    rom.load_hex16("pcfx.rom.hex");
+    rombios.load_hex16("pcfx.rom.hex");
 
     repeat (5) @(posedge clk) ;
     res <= 0;
