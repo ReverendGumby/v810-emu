@@ -8,7 +8,7 @@ module data_bus_resizer
 
    input               CTLR_DAn,
    input [3:0]         CTLR_BEn,
-   output logic        CTLR_READYn,
+   output              CTLR_READYn,
    output              CTLR_SZRQn,
    output [31:0]       CTLR_DI,
    input [31:0]        CTLR_DO,
@@ -18,26 +18,28 @@ module data_bus_resizer
    input [31:0]        MEM_DO
    );
 
-logic           ready_w0, ready_w1;
+logic           ready, ready_w0, ready_w1;
 logic [31:0]    ctlr_di;
 
 // Emulate memory with one wait state
 always @(posedge CLK) if (CE) begin
-    ready_w1 <= ~ready_w1 & ~CTLR_DAn & ~MEM_nCE;
+    ready_w1 <= ~ready_w1 & ~CTLR_DAn;
 end
 
 // Emulate memory with no wait states
-assign ready_w0 = ~CTLR_DAn & ~MEM_nCE;
+assign ready_w0 = '1;
 
 always @* begin
     case (WS)
-        0: CTLR_READYn = ~ready_w0;
-        1: CTLR_READYn = ~ready_w1;
-        default: CTLR_READYn = 'X;
+        0: ready = ready_w0;
+        1: ready = ready_w1;
+        default: ready = 'X;
     endcase
+    ready &= ~CTLR_DAn;
 end
 
-assign CTLR_SZRQn = ~((DW == 16) & ~CTLR_READYn);
+assign CTLR_READYn = ~MEM_nCE ? ~ready : 'Z;
+assign CTLR_SZRQn = ~MEM_nCE ? ~((DW == 16) & ready) : 'Z;
 
 always @* begin
     if (DW == 32) begin

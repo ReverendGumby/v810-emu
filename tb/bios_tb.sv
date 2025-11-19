@@ -13,13 +13,14 @@ wire            dut_dwr;
 wire            dut_dreq, dut_dack;
 
 wire [31:0]     mem_a;
-wire [31:0]     mem_d_i, mem_d_o;
+wor [31:0]      mem_d_i;
+wire [31:0]     mem_d_o;
 wire [3:0]      mem_ben;
 wire            mem_dan;
 wire            mem_mrqn;
 wire            mem_rw;
 wire            mem_bcystn;
-wand            mem_readyn;
+wor             mem_readyn;
 wand            mem_szrqn;
 
 int             rom_ws, rom_dw;
@@ -88,6 +89,8 @@ v810_mem dut_mem
    .SZRQn(mem_szrqn)
    );
 
+assign mem_d_i = '0;
+assign mem_readyn = '0;
 assign mem_szrqn = '1;
 
 data_bus_resizer rom_dbr
@@ -153,7 +156,7 @@ initial #0 begin
     res <= 0;
 end
 
-initial #800 begin
+initial #(40e3) begin
     $error("Emergency exit!");
     $fatal(1);
 end
