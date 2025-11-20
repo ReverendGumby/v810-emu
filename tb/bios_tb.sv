@@ -10,6 +10,8 @@ wire [31:0]     dut_dd_i, dut_dd_o;
 wire [1:0]      dut_dbc;
 wire [3:0]      dut_dbe;
 wire            dut_dwr;
+wire            dut_dmrq;
+wire [1:0]      dut_dst;
 wire            dut_dreq, dut_dack;
 
 wire [31:0]     mem_a;
@@ -51,6 +53,8 @@ v810_exec dut
    .DBC(dut_dbc),
    .DBE(dut_dbe),
    .DWR(dut_dwr),
+   .DMRQ(dut_dmrq),
+   .DST(dut_dst),
    .DREQ(dut_dreq),
    .DACK(dut_dack),
 
@@ -69,6 +73,8 @@ v810_mem dut_mem
    .EUDBC(dut_dbc),
    .EUDBE(dut_dbe),
    .EUDWR(dut_dwr),
+   .EUDMRQ(dut_dmrq),
+   .EUDST(dut_dst),
    .EUDREQ(dut_dreq),
    .EUDACK(dut_dack),
 

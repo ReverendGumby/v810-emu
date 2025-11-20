@@ -95,6 +95,7 @@ wor             ma_flush;
 // System Registers
 
 psw_t           psw;
+logic [31:0]    chcw;
 
 logic           halted;         // End of the line
 
@@ -913,6 +914,16 @@ assign DST[1] = exma_ctl.ma.MemReq | exma_ctl.ma.IOReq |
 
 assign DREQ = (exma_ctl.ma.MemReq | exma_ctl.ma.IOReq | exma_ctl.ma.FaultReq);
 
+// Stall pipeline while memory access completes
+wire ma_incomplete = DREQ & ~DACK;
+assign if_stall = ma_incomplete;
+assign id_stall = ma_incomplete;
+assign ex_stall = ma_incomplete;
+assign ma_flush = ma_incomplete;
+
+//////////////////////////////////////////////////////////////////////
+// Special Register Write back
+
 always @(posedge CLK) if (CE) begin
     if (~RESn)
         psw <= 32'h00008000;
@@ -925,12 +936,14 @@ always @(posedge CLK) if (CE) begin
     end
 end
 
-// Stall pipeline while memory access completes
-wire ma_incomplete = DREQ & ~DACK;
-assign if_stall = ma_incomplete;
-assign id_stall = ma_incomplete;
-assign ex_stall = ma_incomplete;
-assign ma_flush = ma_incomplete;
+always @(posedge CLK) if (CE) begin
+    if (~RESn)
+        chcw <= '0;
+    else begin
+        if (exma_ctl.ma.SRWrite & (exma_ctl.ma.SRSel == SRSEL_CHCW))
+            chcw <= exma_rf_rd2;
+    end
+end
 
 //////////////////////////////////////////////////////////////////////
 // MA/WB pipeline register

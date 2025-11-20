@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Thu Nov 20 17:05:35 2025
+[*] Thu Nov 20 17:09:47 2025
 [*]
 [dumpfile] "/Users/dhunter/src/v810-emu/tb/dev_tb.vcd"
-[dumpfile_mtime] "Thu Nov 20 17:03:43 2025"
-[dumpfile_size] 16217541
+[dumpfile_mtime] "Thu Nov 20 17:09:26 2025"
+[dumpfile_size] 16217579
 [savefile] "/Users/dhunter/src/v810-emu/tb/dev_tb.gtkw"
-[timestart] 26200
+[timestart] 0
 [size] 1333 600
 [pos] -1 -1
-*-6.786969 26520 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+*-17.790915 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 [markername] AA
 [markername] BB
 [markername] CC
@@ -114,8 +114,10 @@ dev_tb.dut.DREQ
 dev_tb.dut.DACK
 @800200
 -sysreg
-@23
+@22
 dev_tb.dut.psw[31:0]
+@23
+dev_tb.dut.chcw[31:0]
 @28
 dev_tb.dut.halted
 @1000200
