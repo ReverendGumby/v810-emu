@@ -1,0 +1,25 @@
+@0
+
+// Test: Read out PSW with STSR
+
+01E0 // MOV r0, r15
+
+A100 8000 // MOVEA #0x8000, r0, r8  // r8 = 0xFFFF8000
+BD08 0001 // MOVHI #0x0001, r8, r8  // r8 = 0x00008000
+9A00 // NOP
+9A00 // NOP
+9A00 // NOP
+
+4021 // MOV #1, r1
+0C20 // CMP r1, r0      // Clear PSW[3:0]
+9A00 // NOP
+9A00 // NOP
+7525 // STSR r9, PSW    // r9 = 0x00008000
+0D09 // CMP r8, r9
+8404 // BZ .+4          // Should branch
+6800 // HALT
+
+// Pass!
+
+41EF // MOV #15, r15
+6800 // HALT

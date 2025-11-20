@@ -1,0 +1,13 @@
+@0
+
+// Test: Set PSW interrupt bits with LDSR
+
+01E0 // MOV r0, r15
+
+A100 1000 // MOVEA #0x1000, r0, r8  // r8 = 0x00001000
+9A00 // NOP
+9A00 // NOP
+9A00 // NOP
+
+7105 // LDSR r8, PSW    // Set PSW.ID, clear PSW.NP
+6800 // HALT

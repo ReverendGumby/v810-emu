@@ -73,6 +73,18 @@ typedef struct packed {
     logic Zero;
 } aluflags_t;
 
+typedef struct packed {
+    logic [11:0] rfu20;
+    logic [3:0] i;              // Interrupt level
+    logic       np;             // NMI Pending
+    logic       ep;             // Exception Pending
+    logic       ae;             // Address Trap Enable
+    logic       id;             // Interrupt Disable
+    logic [1:0] rfu10;
+    logic [5:0] float_fl;       // TODO
+    aluflags_t  alu_fl;
+} psw_t;
+
 wor             if_stall, if_flush;
 wor             id_stall, id_flush;
 wor             ex_stall, ex_flush;
@@ -82,7 +94,7 @@ wor             ma_flush;
 //////////////////////////////////////////////////////////////////////
 // System Registers
 
-aluflags_t      psw;    // TODO: More flags to come
+psw_t           psw;
 
 logic           halted;         // End of the line
 
@@ -106,11 +118,6 @@ typedef enum bit [2:0] {
     ALUSRC2_CONST_4
 } alu_src2_t;
 
-typedef enum bit {
-    RDOUTSRC_RF_RD2 = 1'd0,
-    RDOUTSRC_SR_RD
-} rdout_src_t;
-
 typedef enum bit [4:0] {
     SRSEL_EIPC = 5'd0,
     SRSEL_EIPSW = 5'd1,
@@ -131,8 +138,6 @@ typedef struct packed {
     alu_src2_t  ALUSrc2;
     logic       Branch;
     logic [3:0] Bcond;
-    rdout_src_t RDOutSrc;
-    sr_sel_t    SRSel;
     logic       Halt; // TODO: there's gotta be a better way
 } ctl_ex_t;
 
@@ -142,6 +147,10 @@ typedef struct packed {
     logic       IOReq;
     logic       FaultReq;
     aluflags_t  FlagMask;
+    sr_sel_t    SRSel;
+    logic       SRWrite;
+    logic       SRtoMem;
+    logic       SRtoReg;
 } ctl_ma_t;
 
 typedef struct packed {
@@ -167,9 +176,10 @@ struct packed {
 
 // EX/MA
 logic [4:0]     exma_rf_wa;
-logic [31:0]    exma_rdout;
+logic [31:0]    exma_rf_rd2;
 logic [31:0]    exma_alu_out;
 aluflags_t      exma_alu_fl;
+logic [31:0]    exma_sr_rd;
 struct packed {
     ctl_ma_t    ma;
     ctl_wb_t    wb;
@@ -482,15 +492,25 @@ always @* begin
                 id_rf_ra2 = ifid_ir[9:5];
                 id_ctl_ex.ALUSrc1 = ALUSRC1_PC;
                 id_ctl_ex.ALUOp = ALUOP_MOV;
-                id_ctl_ex.RDOutSrc = RDOUTSRC_SR_RD;
-                id_ctl_ex.SRSel = SRSEL_PSW;
                 id_ctl_ex.Halt = '1;
                 id_ctl_ma.FaultReq = '1;
                 id_ctl_ma.Write = '1;
+                id_ctl_ma.SRSel = SRSEL_PSW;
+                id_ctl_ma.SRtoMem = '1;
                 id_ctl_wb.MemWidth = 2'd1; // halfword
             end
         6'b011_100:             // LDSR
             begin
+                id_rf_ra2 = ifid_ir[9:5];
+                id_ctl_ma.SRSel = ifid_ir[4:0];
+                id_ctl_ma.SRWrite = '1;
+            end
+        6'b011_101:             // STSR
+            begin
+                id_rf_wa = ifid_ir[9:5];
+                id_ctl_ma.SRSel = ifid_ir[4:0];
+                id_ctl_ma.SRtoReg = '1;
+                id_ctl_wb.RegWrite = '1;
             end
         6'b100_xxx:             // Bcond (branch)
             begin
@@ -682,7 +702,6 @@ end
 //////////////////////////////////////////////////////////////////////
 
 logic           bcond_match;
-logic [31:0]    ex_rdout;
 logic [31:0]    ex_sr_rd;
 
 assign ex_flush = '0;
@@ -774,21 +793,21 @@ end
 always @* begin
     case (idex_ctl.ex.Bcond[2:0])
         BCOND_V:               // Overflow
-            bcond_match = psw.Over;
+            bcond_match = psw.alu_fl.Over;
         BCOND_C:               // Carry / Lower
-            bcond_match = psw.Carry;
+            bcond_match = psw.alu_fl.Carry;
         BCOND_Z:               // Zero / Equal
-            bcond_match = psw.Zero;
+            bcond_match = psw.alu_fl.Zero;
         BCOND_NH:              // Not higher
-            bcond_match = psw.Carry | psw.Zero;
+            bcond_match = psw.alu_fl.Carry | psw.alu_fl.Zero;
         BCOND_S:               // Negative
-            bcond_match = psw.Sign;
+            bcond_match = psw.alu_fl.Sign;
         BCOND_T:               // Always
             bcond_match = '1; 
         BCOND_LT:              // Less than signed
-            bcond_match = psw.Sign ^ psw.Over;
+            bcond_match = psw.alu_fl.Sign ^ psw.alu_fl.Over;
         BCOND_LTE:             // Less than or equal signed
-            bcond_match = (psw.Sign ^ psw.Over) | psw.Zero;
+            bcond_match = (psw.alu_fl.Sign ^ psw.alu_fl.Over) | psw.alu_fl.Zero;
     endcase
     // MSB inverts the test.
     bcond_match ^= idex_ctl.ex.Bcond[3];
@@ -807,17 +826,9 @@ assign id_flush = branch_taken & ~branch_no_id_flush;
 // Special stuff
 
 always @* begin
-    case (idex_ctl.ex.SRSel)
+    case (idex_ctl.ma.SRSel)
         SRSEL_PSW:      ex_sr_rd = psw;
         default:        ex_sr_rd = 'X;
-    endcase
-end
-
-always @* begin
-    case (idex_ctl.ex.RDOutSrc)
-        RDOUTSRC_RF_RD2:    ex_rdout = idex_rf_rd2;
-        RDOUTSRC_SR_RD:     ex_rdout = ex_sr_rd;
-        default:            ex_rdout = 'X;
     endcase
 end
 
@@ -844,9 +855,10 @@ wire exma_ctl_flush = RESn & (ex_flush);
 always @(posedge CLK) if (CE) begin
     if (~RESn | ~ex_stall) begin
         exma_rf_wa <= idex_rf_wa;
-        exma_rdout <= ex_rdout;
+        exma_rf_rd2 <= idex_rf_rd2;
         exma_alu_out <= alu_out;
         exma_alu_fl <= alu_fl;
+        exma_sr_rd <= ex_sr_rd;
         exma_ctl.ma <= exma_ctl_flush ? '0 : idex_ctl.ma;
         exma_ctl.wb <= exma_ctl_flush ? '0 : idex_ctl.wb;
     end
@@ -879,15 +891,15 @@ end
 always @* begin
     case (exma_ctl.wb.MemWidth)
         2'b00:
-            ma_do = {4{exma_rdout[7:0]}};
+            ma_do = {4{exma_rf_rd2[7:0]}};
         2'b01:
-            ma_do = {2{exma_rdout[15:0]}};
+            ma_do = {2{exma_rf_rd2[15:0]}};
         default: // 2'b11
-            ma_do = exma_rdout;
+            ma_do = exma_rf_rd2;
     endcase
 end
 
-assign DA = exma_alu_out;
+assign DA = exma_ctl.ma.SRtoMem ? exma_sr_rd : exma_alu_out;
 assign ma_di = DD_I;
 assign DD_O = ma_do;
 assign DBC = exma_ctl.wb.MemWidth;
@@ -903,10 +915,14 @@ assign DREQ = (exma_ctl.ma.MemReq | exma_ctl.ma.IOReq | exma_ctl.ma.FaultReq);
 
 always @(posedge CLK) if (CE) begin
     if (~RESn)
-        psw <= '0;
-    else
-        psw <= (psw & ~exma_ctl.ma.FlagMask) |
-               (exma_alu_fl & exma_ctl.ma.FlagMask);
+        psw <= 32'h00008000;
+    else begin
+        if (exma_ctl.ma.SRWrite & (exma_ctl.ma.SRSel == SRSEL_PSW))
+            psw <= exma_rf_rd2;
+        else
+            psw.alu_fl <= (psw.alu_fl & ~exma_ctl.ma.FlagMask) |
+                          (exma_alu_fl & exma_ctl.ma.FlagMask);
+    end
 end
 
 // Stall pipeline while memory access completes
@@ -923,7 +939,7 @@ wire mawb_ctl_flush = RESn & (ma_flush);
 
 always @(posedge CLK) if (CE) begin
     mawb_rf_wa <= exma_rf_wa;
-    mawb_alu_out <= exma_alu_out;
+    mawb_alu_out <= exma_ctl.ma.SRtoReg ? exma_sr_rd : exma_alu_out;
     mawb_mem_rd <= ma_di;
     mawb_mem_bsel <= ma_bsel;
     mawb_ctl.wb <= mawb_ctl_flush ? '0 : exma_ctl.wb;
@@ -983,7 +999,17 @@ wire haz_flag_ex = |idex_ctl.ma.FlagMask & (haz_bcond | haz_setf);
 
 wire haz_flag = haz_flag_ex;
 
-assign if_stall = (haz_data | haz_flag) & ~branch_taken;
-assign id_flush = (haz_data | haz_flag);
+// System Hazard
+//
+// Because LDSR takes effect immediately, i.e., is observed by the
+// next instruction, there is a system hazard until LDSR clears MA.
+
+wire haz_sys_ex = idex_ctl.ma.SRWrite;
+wire haz_sys_ma = exma_ctl.ma.SRWrite;
+
+wire haz_sys = haz_sys_ex | haz_sys_ma;
+
+assign if_stall = (haz_data | haz_flag | haz_sys) & ~branch_taken;
+assign id_flush = (haz_data | haz_flag | haz_sys);
 
 endmodule

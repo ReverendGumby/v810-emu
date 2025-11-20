@@ -249,7 +249,7 @@ initial #0 begin
     $finish();
 end
 
-initial #800 begin
+initial #1000 begin
     $error("Emergency exit!");
     $fatal(1);
 end
@@ -392,6 +392,30 @@ task test_jmp_jr_jal;
     assert(dut.rmem[2] == 32'h5);
 endtask
 
+task test_ldsr0;
+    imem.load_hex16("dev_imem_ldsr0.hex");
+    start_test;
+    end_test;
+
+    assert(dut.rmem[15] == 32'd15);
+endtask
+
+task test_ldsr1;
+    imem.load_hex16("dev_imem_ldsr1.hex");
+    start_test;
+    end_test;
+
+    assert(dut.psw == 32'h00001000);
+endtask
+
+task test_stsr0;
+    imem.load_hex16("dev_imem_stsr0.hex");
+    start_test;
+    end_test;
+
+    assert(dut.rmem[15] == 32'd15);
+endtask
+
 task test_all;
     test_mov_rr;
     test_alu0;
@@ -404,6 +428,9 @@ task test_all;
     test_alu2;
     test_ldst1;
     test_ldst2;
+    test_ldsr0;
+    test_ldsr1;
+    test_stsr0;
 endtask
 
 task test_all_ram_modes;

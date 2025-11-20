@@ -1,0 +1,26 @@
+@0
+
+// LDSR takes effect immediately, i.e., is observed by the next instruction.
+
+// Test: Set PSW.Zero (bit 0) with LDSR
+
+01E0 // MOV r0, r15
+
+A100 8001 // MOVEA #0x8001, r0, r8  // r8 = 0xFFFF8001
+BD08 0001 // MOVHI #0x0001, r8, r8  // r8 = 0x00008001
+9A00 // NOP
+9A00 // NOP
+9A00 // NOP
+
+4021 // MOV #1, r1
+0C20 // CMP r1, r0      // Clear PSW[3:0]
+9A00 // NOP
+9A00 // NOP
+7105 // LDSR r8, PSW    // Set PSW[0]
+8404 // BZ .+4          // Should branch on PSW.Zero == 1
+6800 // HALT
+
+// Pass!
+
+41EF // MOV #15, r15
+6800 // HALT
