@@ -3,6 +3,8 @@
 module dev_tb();
 
 bit             clk, ce, res;
+bit             halted;
+
 logic [31:0]    dut_ia, dut_da;
 logic [31:0]    dut_id;
 logic           dut_ireq, dut_iack;
@@ -10,6 +12,8 @@ wire [31:0]     dut_dd_i, dut_dd_o;
 wire [1:0]      dut_dbc;
 wire [3:0]      dut_dbe;
 wire            dut_dwr;
+wire            dut_dmrq;
+wire [1:0]      dut_dst;
 wire            dut_dreq, dut_dack;
 
 wire [31:0]     dut_mem_a;
@@ -17,11 +21,12 @@ logic [31:0]    dut_mem_euia;
 wire [31:0]     dut_mem_d_i, dut_mem_d_o, dut_mem_euid;
 logic           dut_mem_euireq, dut_mem_euiack;
 wire [3:0]      dut_mem_ben;
+wire [1:0]      dut_mem_st;
 wire            dut_mem_dan;
 wire            dut_mem_mrqn;
 wire            dut_mem_rw;
 wire            dut_mem_bcystn;
-wand            dut_mem_readyn;
+wor             dut_mem_readyn;
 wand            dut_mem_szrqn;
 
 logic [31:0]    imem_a, imem_do;
@@ -61,6 +66,8 @@ v810_exec dut
    .DBC(dut_dbc),
    .DBE(dut_dbe),
    .DWR(dut_dwr),
+   .DMRQ(dut_dmrq),
+   .DST(dut_dst),
    .DREQ(dut_dreq),
    .DACK(dut_dack),
 
@@ -79,6 +86,8 @@ v810_mem dut_mem
    .EUDBC(dut_dbc),
    .EUDBE(dut_dbe),
    .EUDWR(dut_dwr),
+   .EUDMRQ(dut_dmrq),
+   .EUDST(dut_dst),
    .EUDREQ(dut_dreq),
    .EUDACK(dut_dack),
 
@@ -91,6 +100,7 @@ v810_mem dut_mem
    .D_I(dut_mem_d_i),
    .D_O(dut_mem_d_o),
    .BEn(dut_mem_ben),
+   .ST(dut_mem_st),
    .DAn(dut_mem_dan),
    .MRQn(dut_mem_mrqn),
    .RW(dut_mem_rw),
@@ -133,6 +143,7 @@ always @* begin
     end
 end
 
+assign dut_mem_readyn = '0;
 assign dut_mem_szrqn = '1;
 
 assign dmem_ben = dut_mem_ben;
@@ -202,6 +213,7 @@ task imem_load_boot;
 endtask
 
 initial begin
+    halted = 0;
     res = 1;
     ce = 1;
     clk = 1;
@@ -223,7 +235,7 @@ task start_test;
 endtask
 
 task end_test;
-    @(dut.halt) ;               // wait for HALT instruction
+    @(posedge halted) ;         // wait for HALT instruction
 
     repeat (10) @(posedge clk) ;
     //assert(dut_mem_dan & dut_mem_mrqn); // reset while bus is busy == bad
@@ -246,6 +258,21 @@ always @dut_ia begin
     if (dut_ia[0]) begin
         $error("Invalid instruction address!");
         $fatal(1);
+    end
+end
+
+// Assert that the bus stays idle after the fault/halt acknowledge.
+always @(posedge clk) if (ce) begin
+    if (res)
+        halted <= '0;
+    else begin
+        if (~dut_mem_dan & ~dut_mem_readyn & dut_mem_mrqn & dut_mem_st[0])
+            halted <= '1;
+        else if (halted) begin
+            assert(dut_mem_dan & dut_mem_bcystn);
+            else
+                @(posedge clk) $fatal(1, "Bus must stay idle after fault/halt");
+        end
     end
 end
 

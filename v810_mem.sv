@@ -25,6 +25,8 @@ module v810_mem
    input [1:0]   EUDBC, // Byte Count - 1 (0=1, 1=2, 3=4)
    input [3:0]   EUDBE, // Byte Enable
    input         EUDWR, // Write / not Read
+   input         EUDMRQ, // Memory Request
+   input [1:0]   EUDST, // Bus Status
    input         EUDREQ, // Access request
    output        EUDACK, // Access acknowledge
 
@@ -33,6 +35,7 @@ module v810_mem
    input [31:0]  D_I,
    output [31:0] D_O,
    output [3:0]  BEn, // Byte Enable
+   output [1:0]  ST, // Bus Status
    output        DAn, // Data Access
    output        MRQn, // Memory ReQuesst
    output        RW, // Read / not Write
@@ -54,6 +57,8 @@ typedef struct packed {
     logic [31:0]    d;
     logic [1:0]     bc;
     logic [3:0]     be;
+    logic           mrq;
+    logic [1:0]     st;
 } wb_slot_t;
 
 wb_slot_t       wb_slot [WB_NUM_SLOTS];
@@ -113,11 +118,13 @@ logic [31:0]    bm_ebi_di, bm_ebi_do;
 logic [1:0]     bm_ebi_bc;
 logic [3:0]     bm_ebi_be;
 logic           bm_ebi_wr;
+logic           bm_ebi_mrq;
+logic [1:0]     bm_ebi_st;
 logic           bm_ebi_req;
 logic           bm_ebi_ack;
 
 assign wb_write = ~dbg_bypass_wb & RESn & EUDREQ & EUDWR & ~wb_full;
-assign wb_in = {EUDA, EUDD_O, EUDBC, EUDBE};
+assign wb_in = {EUDA, EUDD_O, EUDBC, EUDBE, EUDMRQ, EUDST};
 assign wb_read = bm_sel_wb & bm_ebi_ack;
 
 assign bm_sel_wb = ~wb_empty;
@@ -136,6 +143,8 @@ always @* begin
         bm_ebi_bc = wb_out.bc;
         bm_ebi_be = wb_out.be;
         bm_ebi_wr = '1;
+        bm_ebi_mrq = wb_out.mrq;
+        bm_ebi_st = wb_out.st;
         bm_ebi_req = '1;
     end
     else if (bm_sel_eud) begin
@@ -144,6 +153,8 @@ always @* begin
         bm_ebi_bc = EUDBC;
         bm_ebi_be = EUDBE;
         bm_ebi_wr = EUDWR;
+        bm_ebi_mrq = EUDMRQ;
+        bm_ebi_st = EUDST;
         bm_ebi_req = EUDREQ & (dbg_bypass_wb | ~EUDWR);
     end
     else /*if (bm_sel_eui)*/ begin
@@ -152,6 +163,9 @@ always @* begin
         bm_ebi_bc = 2'd3;
         bm_ebi_be = '1;
         bm_ebi_wr = '0;
+        bm_ebi_mrq = '1;
+        bm_ebi_st[0] = EUIREQ;
+        bm_ebi_st[1] = EUIREQ; // TODO: '0 for fetch after branch
         bm_ebi_req = EUIREQ;
     end
 end
@@ -188,12 +202,19 @@ ebst_t          ebstp, ebst;
 logic           eb_word1, eb_word2, eb_words;
 logic           eb_next_word;  // Last cycle of access
 logic           eb_two_half;   // Access will take two halfword cycles
-logic [3:0]     eb_be;
+logic [3:0]     eb_be_p;
 logic           eb_readyn_d;
 logic           eb_two_half_d;
 logic [15:0]    eb_rbuf1;
-logic [31:0]    eb_di, eb_do;
+logic [31:0]    eb_di, eb_do_p;
 logic           eb_halfword_byte_in_upper_half;
+logic [31:0]    eb_a, eb_a_d;
+logic [31:0]    eb_do, eb_do_d;
+logic [3:0]     eb_be, eb_be_d;
+logic [1:0]     eb_st, eb_st_d;
+logic           eb_mrq, eb_mrq_d;
+logic           eb_wr, eb_wr_d;
+logic           eb_bcyst, eb_bcyst_d;
 logic [31:0]    eb_a_cur;
 
 assign eb_two_half = (bm_ebi_bc == 2'd3) & ~SZRQn;
@@ -255,10 +276,10 @@ assign eb_next_word = (((ebst == EBST_T2) & ~eb_two_half) |
 // For dynamic sizing, all data moves through D[15:0].
 
 always @* begin
-    eb_be = bm_ebi_be;
+    eb_be_p = bm_ebi_be;
     if (eb_word2)
         // Dynamic sizing: disable upper halfword BE on second bus cycle.
-        eb_be[1:0] = '0;
+        eb_be_p[1:0] = '0;
 end
 
 always @(posedge CLK) if (CE) begin
@@ -281,28 +302,62 @@ always @* begin
 end
 
 always @* begin
-    eb_do = bm_ebi_do;
+    eb_do_p = bm_ebi_do;
     if (eb_word2 | eb_halfword_byte_in_upper_half)
         // Dynamic sizing: Shift upper to lower (output) halfword for writes.
-        eb_do[15:0] = bm_ebi_do[31:16];
+        eb_do_p[15:0] = bm_ebi_do[31:16];
 end
 
-assign A[31:2] = bm_ebi_a[31:2];
-assign A[1] = eb_word2;
-assign A[0] = '0;
+// Bus state in TI cycles reflects that of the last non-TI cycle.
+always @(posedge CLK) if (CE) begin
+    eb_a_d <= eb_a;
+    eb_do_d <= eb_do;
+    eb_be_d <= eb_be;
+    eb_st_d <= eb_st;
+    //eb_mrq_d <= eb_mrq;
+    eb_wr_d <= eb_wr;
+    eb_bcyst_d <= eb_bcyst;
+end
+
+always @* begin
+    if ((ebst == EBST_TI) | (ebst == EBST_TIS)) begin
+        eb_a = eb_a_d;
+        eb_do = eb_do_d;
+        eb_be = eb_be_d;
+        eb_st = eb_st_d;
+        //eb_mrq = eb_mrq_d;
+        eb_wr = eb_wr_d;
+        eb_bcyst = eb_bcyst_d;
+    end
+    else begin
+        eb_a[31:2] = bm_ebi_a[31:2];
+        eb_a[1] = eb_word2;
+        eb_a[0] = '0;
+        eb_do = eb_do_p;
+        eb_be = eb_be_p;
+        eb_st = bm_ebi_st;
+        //eb_mrq = (bm_ebi_req & bm_ebi_mrq);
+        eb_wr = (bm_ebi_req & bm_ebi_wr);
+        eb_bcyst = ((ebst == EBST_T1) | (ebst == EBST_T1S));
+    end
+end
+
+assign A = eb_a;
 assign D_O = eb_do;
 assign BEn = ~eb_be;
+assign ST = eb_st;
 assign DAn = ~((ebst == EBST_T2) | (ebst == EBST_T2S));
-assign MRQn = ~bm_ebi_req;
-assign RW = MRQn | ~bm_ebi_wr;
-assign BCYSTn = ~((ebst == EBST_T1) | (ebst == EBST_T1S));
+//assign MRQn = ~eb_mrq;
+assign MRQn = ~(bm_ebi_req & bm_ebi_mrq);
+assign RW = ~eb_wr;
+assign BCYSTn = ~eb_bcyst;
 
 assign bm_ebi_ack = eb_next_word;
 assign bm_ebi_di = eb_di;
 
 // Debugging assertions
 always @(posedge CLK) if (CE) begin
-    if (~dbg_bypass_ebi_t1 & ~MRQn) begin
+    if (~dbg_bypass_ebi_t1 & (~BCYSTn | ~DAn)) begin
         if (~BCYSTn)
             eb_a_cur <= A;
         else begin

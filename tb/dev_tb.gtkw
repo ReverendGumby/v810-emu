@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Mon Nov 10 07:52:04 2025
+[*] Thu Nov 20 05:39:49 2025
 [*]
 [dumpfile] "/Users/dhunter/src/v810-emu/tb/dev_tb.vcd"
-[dumpfile_mtime] "Mon Nov 10 07:51:22 2025"
-[dumpfile_size] 13506838
+[dumpfile_mtime] "Thu Nov 20 05:31:54 2025"
+[dumpfile_size] 13986777
 [savefile] "/Users/dhunter/src/v810-emu/tb/dev_tb.gtkw"
-[timestart] 297583
+[timestart] 3751
 [size] 1333 600
 [pos] -1 -1
-*-7.600230 297880 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+*-7.855502 4200 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 [markername] AA
 [markername] BB
 [markername] CC
@@ -41,8 +41,9 @@
 [signals_width] 283
 [sst_expanded] 1
 [sst_vpaned_height] 159
-@800200
+@c00200
 -dut_mem
+@800200
 -wb
 @28
 dev_tb.dut_mem.wb_full
@@ -53,7 +54,7 @@ dev_tb.dut_mem.wb_write
 dev_tb.dut_mem.wb_read
 @1000200
 -wb
-@800200
+@c00200
 -bm
 @28
 dev_tb.dut_mem.bm_sel_wb
@@ -68,9 +69,11 @@ dev_tb.dut_mem.bm_ebi_bc[1:0]
 dev_tb.dut_mem.bm_ebi_be[3:0]
 @28
 dev_tb.dut_mem.bm_ebi_wr
+dev_tb.dut_mem.bm_ebi_mrq
+dev_tb.dut_mem.bm_ebi_st[1:0]
 dev_tb.dut_mem.bm_ebi_req
 dev_tb.dut_mem.bm_ebi_ack
-@1000200
+@1401200
 -bm
 @24
 dev_tb.dut_mem.ebst[2:0]
@@ -80,13 +83,14 @@ dev_tb.dut_mem.D_I[31:0]
 dev_tb.dut_mem.D_O[31:0]
 @28
 dev_tb.dut_mem.BEn[3:0]
+dev_tb.dut_mem.ST[1:0]
 dev_tb.dut_mem.DAn
 dev_tb.dut_mem.MRQn
 dev_tb.dut_mem.RW
 dev_tb.dut_mem.BCYSTn
 dev_tb.dut_mem.READYn
 dev_tb.dut_mem.SZRQn
-@1000200
+@1401200
 -dut_mem
 @28
 dev_tb.dut.RESn
@@ -104,8 +108,18 @@ dev_tb.dut.DD_O[31:0]
 @28
 dev_tb.dut.DBE[3:0]
 dev_tb.dut.DWR
+dev_tb.dut.DMRQ
+dev_tb.dut.DST[1:0]
 dev_tb.dut.DREQ
 dev_tb.dut.DACK
+@800200
+-sysreg
+@22
+dev_tb.dut.psw[3:0]
+@29
+dev_tb.dut.halted
+@1000200
+-sysreg
 @800200
 -if
 @28
@@ -200,7 +214,7 @@ dev_tb.dut.idex_ir[31:0]
 dev_tb.dut.idex_rf_rd1[31:0]
 dev_tb.dut.idex_rf_rd2[31:0]
 dev_tb.dut.idex_rf_wa[4:0]
-dev_tb.dut.idex_ctl[25:0]
+dev_tb.dut.idex_ctl[33:0]
 dev_tb.dut.alu_in1[31:0]
 dev_tb.dut.alu_in2[31:0]
 dev_tb.dut.alu_op[3:0]
@@ -211,6 +225,9 @@ dev_tb.dut.alu_fl[3:0]
 dev_tb.dut.bcond_match
 @28
 dev_tb.dut.branch_taken
+@22
+dev_tb.dut.ex_sr_rd[31:0]
+dev_tb.dut.ex_rdout[31:0]
 @1000200
 -ex
 @800200
@@ -219,17 +236,19 @@ dev_tb.dut.branch_taken
 dev_tb.dut.ma_flush
 @22
 dev_tb.dut.exma_rf_wa[4:0]
-dev_tb.dut.exma_rf_rd2[31:0]
+dev_tb.dut.exma_rdout[31:0]
 dev_tb.dut.exma_alu_out[31:0]
 @28
 dev_tb.dut.exma_alu_fl[3:0]
 @22
-dev_tb.dut.exma_ctl[9:0]
+dev_tb.dut.exma_ctl[11:0]
 @28
 dev_tb.dut.psw[3:0]
 @22
 dev_tb.dut.ma_di[31:0]
 dev_tb.dut.ma_do[31:0]
+@28
+dev_tb.dut.ma_incomplete
 @1000200
 -ma
 @800200

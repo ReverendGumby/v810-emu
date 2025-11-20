@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Tue Nov 11 07:27:52 2025
+[*] Sat Nov 15 19:14:43 2025
 [*]
 [dumpfile] "/Users/dhunter/src/v810-emu/tb/bios_tb.vcd"
-[dumpfile_mtime] "Tue Nov 11 07:19:24 2025"
-[dumpfile_size] 16028061
+[dumpfile_mtime] "Sat Nov 15 06:35:15 2025"
+[dumpfile_size] 548511685
 [savefile] "/Users/dhunter/src/v810-emu/tb/bios_tb.gtkw"
-[timestart] 0
+[timestart] 10804427
 [size] 1333 768
-[pos] -1 -1
-*-12.400230 10480 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+[pos] 14 -1
+*-7.866713 10804880 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 [markername] AA
 [markername] BB
 [markername] CC
@@ -40,7 +40,7 @@
 [sst_width] 255
 [signals_width] 283
 [sst_expanded] 1
-[sst_vpaned_height] 218
+[sst_vpaned_height] 298
 @28
 bios_tb.ram_cen
 bios_tb.rom_cen
@@ -72,6 +72,8 @@ bios_tb.dut_mem.bm_ebi_bc[1:0]
 bios_tb.dut_mem.bm_ebi_be[3:0]
 @28
 bios_tb.dut_mem.bm_ebi_wr
+bios_tb.dut_mem.bm_ebi_mrq
+bios_tb.dut_mem.bm_ebi_st[1:0]
 bios_tb.dut_mem.bm_ebi_req
 bios_tb.dut_mem.bm_ebi_ack
 @1000200
@@ -84,6 +86,7 @@ bios_tb.dut_mem.D_I[31:0]
 bios_tb.dut_mem.D_O[31:0]
 @28
 bios_tb.dut_mem.BEn[3:0]
+bios_tb.dut_mem.ST[1:0]
 bios_tb.dut_mem.DAn
 bios_tb.dut_mem.MRQn
 bios_tb.dut_mem.RW
@@ -108,14 +111,24 @@ bios_tb.dut.DD_O[31:0]
 @28
 bios_tb.dut.DBE[3:0]
 bios_tb.dut.DWR
+bios_tb.dut.DMRQ
+bios_tb.dut.DST[1:0]
 bios_tb.dut.DREQ
 bios_tb.dut.DACK
-@c00201
--if
+@800200
+-sysreg
+@22
+bios_tb.dut.psw[3:0]
 @29
+bios_tb.dut.halted
+@1000200
+-sysreg
+@c00200
+-if
+@28
 bios_tb.dut.if_stall
 bios_tb.dut.if_flush
-dev_tb.dut.if_fetch_en
+bios_tb.dut.if_fetch_en
 bios_tb.dut.imi_a_new
 bios_tb.dut.imi_incomplete
 bios_tb.dut.if_pc_inc
@@ -128,12 +141,12 @@ bios_tb.dut.if_imi_a2
 bios_tb.dut.if_wrap
 bios_tb.dut.if_wrapped
 bios_tb.dut.if_ins32_fetch_hi
-@23
+@22
 bios_tb.dut.pc[31:0]
 bios_tb.dut.pcn[31:0]
 bios_tb.dut.pd[31:0]
 bios_tb.dut.ir[31:0]
-@1401201
+@1401200
 -if
 @800200
 -id
@@ -204,7 +217,7 @@ bios_tb.dut.idex_ir[31:0]
 bios_tb.dut.idex_rf_rd1[31:0]
 bios_tb.dut.idex_rf_rd2[31:0]
 bios_tb.dut.idex_rf_wa[4:0]
-bios_tb.dut.idex_ctl[25:0]
+bios_tb.dut.idex_ctl[33:0]
 bios_tb.dut.alu_in1[31:0]
 bios_tb.dut.alu_in2[31:0]
 bios_tb.dut.alu_op[3:0]
@@ -215,6 +228,10 @@ bios_tb.dut.alu_fl[3:0]
 bios_tb.dut.bcond_match
 @28
 bios_tb.dut.branch_taken
+@23
+bios_tb.dut.ex_sr_rd[31:0]
+@22
+bios_tb.dut.ex_rdout[31:0]
 @1000200
 -ex
 @800200
@@ -223,17 +240,19 @@ bios_tb.dut.branch_taken
 bios_tb.dut.ma_flush
 @22
 bios_tb.dut.exma_rf_wa[4:0]
-bios_tb.dut.exma_rf_rd2[31:0]
+bios_tb.dut.exma_rdout[31:0]
 bios_tb.dut.exma_alu_out[31:0]
 @28
 bios_tb.dut.exma_alu_fl[3:0]
 @22
-bios_tb.dut.exma_ctl[9:0]
+bios_tb.dut.exma_ctl[11:0]
 @28
 bios_tb.dut.psw[3:0]
 @22
 bios_tb.dut.ma_di[31:0]
 bios_tb.dut.ma_do[31:0]
+@28
+bios_tb.dut.ma_incomplete
 @1000200
 -ma
 @800200

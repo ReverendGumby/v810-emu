@@ -30,6 +30,8 @@ module v810_exec
    output [1:0]  DBC, // Byte Count - 1 (0=1, 1=2, 3=4)
    output [3:0]  DBE, // Byte Enable
    output        DWR, // Write / not Read
+   output        DMRQ, // Memory Request
+   output [1:0]  DST, // Bus Status
    output        DREQ, // Access request
    input         DACK, // Access acknowledge
 
@@ -76,13 +78,13 @@ wor             id_stall, id_flush;
 wor             ex_stall, ex_flush;
 wor             ma_flush;
 
-event halt;
-
 
 //////////////////////////////////////////////////////////////////////
 // System Registers
 
 aluflags_t      psw;    // TODO: More flags to come
+
+logic           halted;         // End of the line
 
 
 //////////////////////////////////////////////////////////////////////
@@ -104,6 +106,24 @@ typedef enum bit [2:0] {
     ALUSRC2_CONST_4
 } alu_src2_t;
 
+typedef enum bit {
+    RDOUTSRC_RF_RD2 = 1'd0,
+    RDOUTSRC_SR_RD
+} rdout_src_t;
+
+typedef enum bit [4:0] {
+    SRSEL_EIPC = 5'd0,
+    SRSEL_EIPSW = 5'd1,
+    SRSEL_FEPC = 5'd2,
+    SRSEL_FEPSW = 5'd3,
+    SRSEL_ECR = 5'd4,
+    SRSEL_PSW = 5'd5,
+    SRSEL_PIR = 5'd6,
+    SRSEL_TKCW = 5'd7,
+    SRSEL_CHCW = 5'd24,
+    SRSEL_ADTRE = 5'd25
+} sr_sel_t;
+
 typedef struct packed {
     logic       Extend; // ins. has multiple EX cycles
     logic [3:0] ALUOp;
@@ -111,12 +131,16 @@ typedef struct packed {
     alu_src2_t  ALUSrc2;
     logic       Branch;
     logic [3:0] Bcond;
+    rdout_src_t RDOutSrc;
+    sr_sel_t    SRSel;
     logic       Halt; // TODO: there's gotta be a better way
 } ctl_ex_t;
 
 typedef struct packed {
-    logic       MemRead;
-    logic       MemWrite;
+    logic       Write;
+    logic       MemReq;
+    logic       IOReq;
+    logic       FaultReq;
     aluflags_t  FlagMask;
 } ctl_ma_t;
 
@@ -143,7 +167,7 @@ struct packed {
 
 // EX/MA
 logic [4:0]     exma_rf_wa;
-logic [31:0]    exma_rf_rd2;
+logic [31:0]    exma_rdout;
 logic [31:0]    exma_alu_out;
 aluflags_t      exma_alu_fl;
 struct packed {
@@ -167,6 +191,8 @@ struct packed {
 
 logic           if_ins32_fetch_hi;
 wand            if_fetch_en;
+
+assign if_fetch_en = ~halted;
 
 //////////////////////////////////////////////////////////////////////
 // Instruction memory interface
@@ -452,7 +478,20 @@ always @* begin
                 id_ctl_wb.RegWrite = '1;
             end
         6'b011_010:             // HALT
-            id_ctl_ex.Halt = '1;
+            begin
+                id_rf_ra2 = ifid_ir[9:5];
+                id_ctl_ex.ALUSrc1 = ALUSRC1_PC;
+                id_ctl_ex.ALUOp = ALUOP_MOV;
+                id_ctl_ex.RDOutSrc = RDOUTSRC_SR_RD;
+                id_ctl_ex.SRSel = SRSEL_PSW;
+                id_ctl_ex.Halt = '1;
+                id_ctl_ma.FaultReq = '1;
+                id_ctl_ma.Write = '1;
+                id_ctl_wb.MemWidth = 2'd1; // halfword
+            end
+        6'b011_100:             // LDSR
+            begin
+            end
         6'b100_xxx:             // Bcond (branch)
             begin
                 id_ctl_ex.ALUSrc1 = ALUSRC1_PC;
@@ -523,7 +562,7 @@ always @* begin
                 id_rf_wa = ifid_ir[9:5];
                 id_ctl_ex.ALUSrc2 = ALUSRC2_IMM16;
                 id_ctl_ex.ALUOp = ALUOP_ADD;
-                id_ctl_ma.MemRead = '1;
+                id_ctl_ma.MemReq = '1;
                 id_ctl_wb.MemWidth = ifid_ir[11:10];
                 id_ctl_wb.MemtoReg = '1;
                 id_ctl_wb.RegWrite = '1;
@@ -534,7 +573,8 @@ always @* begin
                 id_rf_ra2 = ifid_ir[9:5];
                 id_ctl_ex.ALUSrc2 = ALUSRC2_IMM16;
                 id_ctl_ex.ALUOp = ALUOP_ADD;
-                id_ctl_ma.MemWrite = '1;
+                id_ctl_ma.MemReq = '1;
+                id_ctl_ma.Write = '1;
                 id_ctl_wb.MemWidth = ifid_ir[11:10];
             end
         default: ;
@@ -556,6 +596,11 @@ always @(posedge CLK) if (CE) begin
 end
 
 assign if_stall = id_ctl_ex.Extend;
+
+// Avoid an IF fetch happening post-HALT.
+assign if_stall = halted;
+assign if_flush = id_ctl_ex.Halt | halted;
+assign id_flush = halted;
 
 //////////////////////////////////////////////////////////////////////
 // Register file
@@ -637,6 +682,8 @@ end
 //////////////////////////////////////////////////////////////////////
 
 logic           bcond_match;
+logic [31:0]    ex_rdout;
+logic [31:0]    ex_sr_rd;
 
 assign ex_flush = '0;
 
@@ -759,12 +806,34 @@ assign id_flush = branch_taken & ~branch_no_id_flush;
 //////////////////////////////////////////////////////////////////////
 // Special stuff
 
+always @* begin
+    case (idex_ctl.ex.SRSel)
+        SRSEL_PSW:      ex_sr_rd = psw;
+        default:        ex_sr_rd = 'X;
+    endcase
+end
+
+always @* begin
+    case (idex_ctl.ex.RDOutSrc)
+        RDOUTSRC_RF_RD2:    ex_rdout = idex_rf_rd2;
+        RDOUTSRC_SR_RD:     ex_rdout = ex_sr_rd;
+        default:            ex_rdout = 'X;
+    endcase
+end
+
 always @(posedge CLK) if (CE) begin
-    if (idex_ctl.ex.Halt) begin
-        // TODO: Emit a halt acknowledge cycle
-        -> halt;
+    if (~RESn) begin
+        halted <= '0;
+    end
+    else begin
+        if (idex_ctl.ex.Halt) begin
+            halted <= '1;
+        end
     end
 end
+
+// Avoid an IF fetch happening post-HALT.
+assign if_stall = idex_ctl.ex.Halt;
 
 
 //////////////////////////////////////////////////////////////////////
@@ -775,7 +844,7 @@ wire exma_ctl_flush = RESn & (ex_flush);
 always @(posedge CLK) if (CE) begin
     if (~RESn | ~ex_stall) begin
         exma_rf_wa <= idex_rf_wa;
-        exma_rf_rd2 <= idex_rf_rd2;
+        exma_rdout <= ex_rdout;
         exma_alu_out <= alu_out;
         exma_alu_fl <= alu_fl;
         exma_ctl.ma <= exma_ctl_flush ? '0 : idex_ctl.ma;
@@ -810,11 +879,11 @@ end
 always @* begin
     case (exma_ctl.wb.MemWidth)
         2'b00:
-            ma_do = {4{exma_rf_rd2[7:0]}};
+            ma_do = {4{exma_rdout[7:0]}};
         2'b01:
-            ma_do = {2{exma_rf_rd2[15:0]}};
+            ma_do = {2{exma_rdout[15:0]}};
         default: // 2'b11
-            ma_do = exma_rf_rd2;
+            ma_do = exma_rdout;
     endcase
 end
 
@@ -824,8 +893,13 @@ assign DD_O = ma_do;
 assign DBC = exma_ctl.wb.MemWidth;
 assign DBE = ma_be;
 
-assign DREQ = exma_ctl.ma.MemRead | exma_ctl.ma.MemWrite;
-assign DWR = exma_ctl.ma.MemWrite;
+assign DWR = DREQ & exma_ctl.ma.Write;
+assign DMRQ = exma_ctl.ma.MemReq;
+assign DST[0] = exma_ctl.ma.FaultReq;
+assign DST[1] = exma_ctl.ma.MemReq | exma_ctl.ma.IOReq |
+                exma_ctl.ma.FaultReq & (halted /*& ~fault*/);
+
+assign DREQ = (exma_ctl.ma.MemReq | exma_ctl.ma.IOReq | exma_ctl.ma.FaultReq);
 
 always @(posedge CLK) if (CE) begin
     if (~RESn)
