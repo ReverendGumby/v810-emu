@@ -1,14 +1,14 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Sat Nov 15 19:14:43 2025
+[*] Sun Nov 23 05:37:06 2025
 [*]
-[dumpfile] "/Users/dhunter/src/v810-emu/tb/bios_tb.vcd"
-[dumpfile_mtime] "Sat Nov 15 06:35:15 2025"
-[dumpfile_size] 548511685
-[savefile] "/Users/dhunter/src/v810-emu/tb/bios_tb.gtkw"
-[timestart] 10804427
+[dumpfile] "/Users/dhunter/src/v810-emu/tb/bios_tb.verilator.fst"
+[dumpfile_mtime] "Sun Nov 23 05:24:36 2025"
+[dumpfile_size] 30547813
+[savefile] "/Users/dhunter/src/v810-emu/tb/bios_tb.verilator.gtkw"
+[timestart] 0
 [size] 1333 768
-[pos] 14 -1
+[pos] 14 0
 *-7.866713 10804880 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 [markername] AA
 [markername] BB
@@ -40,13 +40,12 @@
 [sst_width] 255
 [signals_width] 283
 [sst_expanded] 1
-[sst_vpaned_height] 298
+[sst_vpaned_height] 266
 @28
 bios_tb.ram_cen
 bios_tb.rom_cen
-@c00200
--dut_mem
 @800200
+-dut_mem
 -wb
 @28
 bios_tb.dut_mem.wb_full
@@ -95,9 +94,11 @@ bios_tb.dut_mem.DAn
 bios_tb.dut_mem.MRQn
 bios_tb.dut_mem.RW
 bios_tb.dut_mem.BCYSTn
+@29
 bios_tb.dut_mem.READYn
+@28
 bios_tb.dut_mem.SZRQn
-@1401200
+@1000200
 -dut_mem
 @28
 bios_tb.dut.RESn
@@ -124,7 +125,7 @@ bios_tb.dut.DACK
 @22
 bios_tb.dut.psw[31:0]
 bios_tb.dut.chcw[31:0]
-@29
+@28
 bios_tb.dut.halted
 @1000200
 -sysreg
@@ -252,7 +253,6 @@ bios_tb.dut.exma_sr_rd[31:0]
 bios_tb.dut.exma_ctl[19:0]
 bios_tb.dut.ma_di[31:0]
 bios_tb.dut.ma_do[31:0]
-@22
 bios_tb.dut.ma_di[31:0]
 bios_tb.dut.ma_do[31:0]
 @28

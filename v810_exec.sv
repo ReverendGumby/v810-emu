@@ -6,10 +6,11 @@
 // - MUL(U), DIV(U)
 // - TRAP, RETI, HALT
 // - Bit string manipulation (Bstr)
-// - LDSR, STSR
 // - Floating-point operation (Fpp)
 // - IN, OUT
 // - CAXI
+// TODO: System registers EIPC, EIPSW, FEPC, FEPSW, ECR, PIR, TKCW, ADTRE
+// TODO: Interrupts / exceptions
 
 module v810_exec
   (
@@ -232,7 +233,10 @@ always @(posedge CLK) if (CE) begin
         imi_a <= imi_an;
         imi_a_new <= ~RESn | ~imi_a_eq_an | (imi_a_new & ~IACK);
     end
-    if (IACK)
+
+    if (~RESn)
+        imi_dbuf <= '0;
+    else if (IACK)
         imi_dbuf <= imi_d;
 end
 
@@ -302,15 +306,12 @@ always @* begin
 end
 
 function if_is_ins32(input [15:0] ins);
-    casex (ins[15:10])
-        6'b101xxx,              // Format IV, V
-        6'b110x0x, 6'b110x11,   // Format VI
-        6'b1110xx, 6'b11110x,   // Format VI
-        6'b111111:              // Format VI
-            if_is_ins32 = '1;
-        default:
-            if_is_ins32 = '0;
-    endcase
+    if_is_ins32 = (ins[15:13] == 3'b101) | // Format IV, V
+                  ((ins[15:13] == 3'b110) &
+                   (~ins[11] | &ins[11:10])) | // Format VI
+                  (ins[15:12] == 4'b1110) |    // Format VI
+                  (ins[15:11] == 5'b11110) |   // Format VI
+                  (ins[15:10] == 6'b111111);   // Format VI
 endfunction
 
 always @* begin
@@ -319,7 +320,7 @@ always @* begin
         imi_an = pc;
     else if (if_fetch_en) begin
         if (if_imi_a2 & ~if_pc_set)
-            imi_an = pcn + 2'd2;
+            imi_an = pcn + 32'd2;
         else
             imi_an = pcn;
     end
@@ -342,27 +343,26 @@ always @* begin
     if_wrap = '0;
     if_ins32_fetch_hi = '0;
 
-    casex ({pc[1], if_wrapped, if_pdhi_ins32, if_pdlo_ins32})
+    casez ({pc[1], if_wrapped, if_pdhi_ins32, if_pdlo_ins32})
         4'b0000,
-        4'b100x:
+        4'b100?:
             ;
-        4'b00x1,
-        4'b110x:    begin
+        4'b00?1,
+        4'b110?:    begin
             if_pc_inc4 = '1;
         end
         4'b0010:    begin
             if_wrap = '1;
         end
-        4'b101x:    begin
+        4'b101?:    begin
             if_wrap = '1;
             if_ins32_fetch_hi = '1;
         end
-        4'b111x:    begin
+        4'b111?:    begin
             if_pc_inc4 = '1;
             if_wrap = '1;
         end
-        default:    // invalid state
-            assert(0);
+        default: ;              // invalid state
     endcase
 end
 
@@ -437,12 +437,12 @@ always @* begin
     id_ctl_ma = '0;
     id_ctl_wb = '0;
 
-    casex (ifid_ir[15:10])
-        6'b0x0_00x,             // MOV, ADD
+    casez (ifid_ir[15:10])
+        6'b0?0_00?,             // MOV, ADD
         6'b000_010,             // SUB
-        6'b0x0_10x,             // SHL, SHR
-        6'b0x0_111,             // SAR
-        6'b001_10x,             // OR, AND
+        6'b0?0_10?,             // SHL, SHR
+        6'b0?0_111,             // SAR
+        6'b001_10?,             // OR, AND
         6'b001_110,             // XOR
         6'b001_111:             // NOT
             begin
@@ -470,7 +470,7 @@ always @* begin
                 id_ctl_ex.Branch = '1;
                 id_ctl_ex.Bcond[2:0] = BCOND_T;
             end
-        6'b0x0_011:             // CMP
+        6'b0?0_011:             // CMP
             begin
                 id_rf_ra2 = ifid_ir[9:5];
                 if (ifid_ir[14])
@@ -503,17 +503,17 @@ always @* begin
         6'b011_100:             // LDSR
             begin
                 id_rf_ra2 = ifid_ir[9:5];
-                id_ctl_ma.SRSel = ifid_ir[4:0];
+                id_ctl_ma.SRSel = sr_sel_t'(ifid_ir[4:0]);
                 id_ctl_ma.SRWrite = '1;
             end
         6'b011_101:             // STSR
             begin
                 id_rf_wa = ifid_ir[9:5];
-                id_ctl_ma.SRSel = ifid_ir[4:0];
+                id_ctl_ma.SRSel = sr_sel_t'(ifid_ir[4:0]);
                 id_ctl_ma.SRtoReg = '1;
                 id_ctl_wb.RegWrite = '1;
             end
-        6'b100_xxx:             // Bcond (branch)
+        6'b100_???:             // Bcond (branch)
             begin
                 id_ctl_ex.ALUSrc1 = ALUSRC1_PC;
                 id_ctl_ex.ALUSrc2 = ALUSRC2_DISP9;
@@ -532,7 +532,7 @@ always @* begin
                 if (ifid_ir[10]) // ADDI
                     id_ctl_ma.FlagMask = '1;
             end
-        6'b101_10x,             // ORI, ANDI
+        6'b101_10?,             // ORI, ANDI
         6'b101_110:             // XORI
             begin
                 id_rf_ra1 = ifid_ir[4:0];
@@ -577,7 +577,7 @@ always @* begin
                 id_ctl_ex.ALUOp = ALUOP_ADD;
                 id_ctl_wb.RegWrite = '1;
             end
-        6'b110_0xx:             // LD
+        6'b110_0??:             // LD
             begin
                 id_rf_ra1 = ifid_ir[4:0];
                 id_rf_wa = ifid_ir[9:5];
@@ -588,7 +588,7 @@ always @* begin
                 id_ctl_wb.MemtoReg = '1;
                 id_ctl_wb.RegWrite = '1;
             end
-        6'b110_1xx:             // ST
+        6'b110_1??:             // ST
             begin
                 id_rf_ra1 = ifid_ir[4:0];
                 id_rf_ra2 = ifid_ir[9:5];
@@ -704,8 +704,6 @@ end
 
 logic           bcond_match;
 logic [31:0]    ex_sr_rd;
-
-assign ex_flush = '0;
 
 //////////////////////////////////////////////////////////////////////
 // ALU

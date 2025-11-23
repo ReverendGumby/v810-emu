@@ -106,10 +106,20 @@ end
 //
 // EU reads effectively flush the write buffer before starting.
 
+typedef enum bit [1:0] {
+    BRP_NONE = 2'd0,
+    BRP_WB,
+    BRP_EUD,
+    BRP_EUI
+} bm_req_pri_t;
+
 // Set to bypass the write buffer.
 bit             dbg_bypass_wb = '0;
 
-logic           bm_sel_wb;      // 1=WB, 0=EU
+logic           bm_req_wb, bm_req_eud, bm_req_eui;
+bm_req_pri_t    bm_req_pri;
+logic           bm_sel_none_d;
+logic           bm_sel_wb, bm_sel_wb_d;
 logic           bm_sel_eud, bm_sel_eud_d;
 logic           bm_sel_eui, bm_sel_eui_d;
 
@@ -127,13 +137,31 @@ assign wb_write = ~dbg_bypass_wb & RESn & EUDREQ & EUDWR & ~wb_full;
 assign wb_in = {EUDA, EUDD_O, EUDBC, EUDBE, EUDMRQ, EUDST};
 assign wb_read = bm_sel_wb & bm_ebi_ack;
 
-assign bm_sel_wb = ~wb_empty;
-assign bm_sel_eud = RESn & (bm_sel_eud_d | (~bm_sel_eui_d & EUDREQ));
-assign bm_sel_eui = RESn & (bm_sel_eui_d | (~bm_sel_eud_d & ~EUDREQ & EUIREQ));
+assign bm_req_wb = ~wb_empty;
+assign bm_req_eud = EUDREQ & (dbg_bypass_wb | ~EUDWR);
+assign bm_req_eui = EUIREQ;
+
+// Priority encoder
+always @* begin
+    bm_req_pri = BRP_NONE;
+    casez ({bm_req_wb, bm_req_eud, bm_req_eui})
+        3'b1??: bm_req_pri = BRP_WB;
+        3'b01?: bm_req_pri = BRP_EUD;
+        3'b001: bm_req_pri = BRP_EUI;
+        default: ;
+    endcase
+end
+
+// One-hot selection
+assign bm_sel_none_d = ~(bm_sel_wb_d | bm_sel_eud_d | bm_sel_eui_d);
+assign bm_sel_wb = RESn & (bm_sel_wb_d | (bm_sel_none_d & (bm_req_pri == BRP_WB)));
+assign bm_sel_eud = RESn & (bm_sel_eud_d | (bm_sel_none_d & (bm_req_pri == BRP_EUD)));
+assign bm_sel_eui = RESn & (bm_sel_eui_d | (bm_sel_none_d & (bm_req_pri == BRP_EUI)));
 
 always @(posedge CLK) if (CE) begin
-    bm_sel_eud_d <= bm_sel_eud & ~EUDACK;
-    bm_sel_eui_d <= bm_sel_eui & ~EUIACK;
+    bm_sel_wb_d <= bm_sel_wb & ~bm_ebi_ack;
+    bm_sel_eud_d <= bm_sel_eud & ~bm_ebi_ack;
+    bm_sel_eui_d <= bm_sel_eui & ~bm_ebi_ack;
 end
 
 always @* begin
@@ -145,7 +173,7 @@ always @* begin
         bm_ebi_wr = '1;
         bm_ebi_mrq = wb_out.mrq;
         bm_ebi_st = wb_out.st;
-        bm_ebi_req = '1;
+        bm_ebi_req = bm_req_wb;
     end
     else if (bm_sel_eud) begin
         bm_ebi_a = EUDA;
@@ -155,9 +183,9 @@ always @* begin
         bm_ebi_wr = EUDWR;
         bm_ebi_mrq = EUDMRQ;
         bm_ebi_st = EUDST;
-        bm_ebi_req = EUDREQ & (dbg_bypass_wb | ~EUDWR);
+        bm_ebi_req = bm_req_eud;
     end
-    else /*if (bm_sel_eui)*/ begin
+    else if (bm_sel_eui) begin
         bm_ebi_a = EUIA;
         bm_ebi_do = 'X;
         bm_ebi_bc = 2'd3;
@@ -166,16 +194,27 @@ always @* begin
         bm_ebi_mrq = '1;
         bm_ebi_st[0] = EUIREQ;
         bm_ebi_st[1] = EUIREQ; // TODO: '0 for fetch after branch
-        bm_ebi_req = EUIREQ;
+        bm_ebi_req = bm_req_eui;
+    end
+    else begin
+        bm_ebi_a = 'X;
+        bm_ebi_do = 'X;
+        bm_ebi_bc = 'X;
+        bm_ebi_be = '0;
+        bm_ebi_wr = '0;
+        bm_ebi_mrq = '0;
+        bm_ebi_st[0] = '0;
+        bm_ebi_st[1] = '0;
+        bm_ebi_req = '0;
     end
 end
 
-assign EUIACK = ~(bm_sel_wb | bm_sel_eud) & bm_ebi_ack;
-assign EUID = ~(bm_sel_wb | bm_sel_eud) ? bm_ebi_di : 'X;
+assign EUIACK = bm_sel_eui & bm_ebi_ack;
+assign EUID = bm_sel_eui ? bm_ebi_di : 'X;
 
 assign EUDACK = (bm_sel_wb | (~dbg_bypass_wb & EUDWR)) ?
                 wb_write : EUDREQ & bm_ebi_ack;
-assign EUDD_I = (~bm_sel_wb & bm_sel_eud) ? bm_ebi_di : 'X;
+assign EUDD_I = bm_sel_eud ? bm_ebi_di : 'X;
 
 
 //////////////////////////////////////////////////////////////////////
@@ -252,6 +291,7 @@ always @* begin
                     ebst = EBST_TI;
             end
         end
+        default: ;
     endcase
 end
 
@@ -358,12 +398,12 @@ assign bm_ebi_di = eb_di;
 // Debugging assertions
 always @(posedge CLK) if (CE) begin
     if (~dbg_bypass_ebi_t1 & (~BCYSTn | ~DAn)) begin
-        if (~BCYSTn)
+        if (~RESn | ~BCYSTn)
             eb_a_cur <= A;
         else begin
             assert(A === eb_a_cur);
             else
-                @(posedge CLK) $fatal(1, "A must not change mid-access");
+                $fatal(1, "A must not change mid-access");
         end
     end
 end

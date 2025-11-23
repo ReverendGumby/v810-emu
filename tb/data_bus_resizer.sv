@@ -38,8 +38,8 @@ always @* begin
     ready &= ~CTLR_DAn;
 end
 
-assign CTLR_READYn = ~MEM_nCE ? ~ready : 'Z;
-assign CTLR_SZRQn = ~MEM_nCE ? ~((DW == 16) & ready) : 'Z;
+assign CTLR_READYn = MEM_nCE | ~ready;
+assign CTLR_SZRQn = MEM_nCE | ~((DW == 16) & ready);
 
 always @* begin
     if (DW == 32) begin
@@ -49,12 +49,12 @@ always @* begin
     else begin
         case (CTLR_BEn)
             4'b1110, 4'b1101, 4'b1100, 4'b0000: begin
-                MEM_DI = {16'bz, CTLR_DO[15:0]};
-                ctlr_di = {16'bz, MEM_DO[15:0]};
+                MEM_DI = {16'bx, CTLR_DO[15:0]};
+                ctlr_di = {16'bx, MEM_DO[15:0]};
             end
             default: begin
-                MEM_DI = {CTLR_DO[15:0], 16'bz};
-                ctlr_di = {16'bz, MEM_DO[31:16]};
+                MEM_DI = {CTLR_DO[15:0], 16'bx};
+                ctlr_di = {16'bx, MEM_DO[31:16]};
             end
         endcase
     end
