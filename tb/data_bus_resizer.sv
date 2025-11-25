@@ -1,3 +1,9 @@
+// Adapt 32-bit fixed-width memory to 16/32-bit bus
+//
+// Copyright (c) 2025 David Hunter
+//
+// This program is GPL licensed. See COPYING for the full license.
+
 module data_bus_resizer
   (
    input int           WS,

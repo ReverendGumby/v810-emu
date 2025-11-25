@@ -1,3 +1,9 @@
+// Run ROM BIOS
+//
+// Copyright (c) 2025 David Hunter
+//
+// This program is GPL licensed. See COPYING for the full license.
+
 `timescale 1us / 1ns
 
 module bios_tb();

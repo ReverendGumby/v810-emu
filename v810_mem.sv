@@ -1,6 +1,8 @@
-`timescale 1us / 1ns
-
 // Memory access unit
+//
+// Copyright (c) 2025 David Hunter
+//
+// This program is GPL licensed. See COPYING for the full license.
 
 // TODO:
 // - Implement bus hold / TH(S) state
