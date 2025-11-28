@@ -356,31 +356,38 @@ always @(posedge CLK) if (CE) begin
     eb_do_d <= eb_do;
     eb_be_d <= eb_be;
     eb_st_d <= eb_st;
-    //eb_mrq_d <= eb_mrq;
     eb_wr_d <= eb_wr;
     eb_bcyst_d <= eb_bcyst;
 end
 
 always @* begin
-    if ((ebst == EBST_TI) | (ebst == EBST_TIS)) begin
-        eb_a = eb_a_d;
-        eb_do = eb_do_d;
-        eb_be = eb_be_d;
-        eb_st = eb_st_d;
-        //eb_mrq = eb_mrq_d;
-        eb_wr = eb_wr_d;
-        eb_bcyst = eb_bcyst_d;
+    if (~RESn) begin
+        eb_a = '0;
+        eb_do = '0;
+        eb_be = '0;
+        eb_st = '0;
+        eb_wr = '0;
+        eb_bcyst = '0;
     end
     else begin
-        eb_a[31:2] = bm_ebi_a[31:2];
-        eb_a[1] = eb_word2;
-        eb_a[0] = '0;
-        eb_do = eb_do_p;
-        eb_be = eb_be_p;
-        eb_st = bm_ebi_st;
-        //eb_mrq = (bm_ebi_req & bm_ebi_mrq);
-        eb_wr = (bm_ebi_req & bm_ebi_wr);
-        eb_bcyst = ((ebst == EBST_T1) | (ebst == EBST_T1S));
+        if ((ebst == EBST_TI) | (ebst == EBST_TIS)) begin
+            eb_a = eb_a_d;
+            eb_do = eb_do_d;
+            eb_be = eb_be_d;
+            eb_st = eb_st_d;
+            eb_wr = eb_wr_d;
+            eb_bcyst = eb_bcyst_d;
+        end
+        else begin
+            eb_a[31:2] = bm_ebi_a[31:2];
+            eb_a[1] = eb_word2;
+            eb_a[0] = '0;
+            eb_do = eb_do_p;
+            eb_be = eb_be_p;
+            eb_st = bm_ebi_st;
+            eb_wr = (bm_ebi_req & bm_ebi_wr);
+            eb_bcyst = ((ebst == EBST_T1) | (ebst == EBST_T1S));
+        end
     end
 end
 
@@ -389,7 +396,6 @@ assign D_O = eb_do;
 assign BEn = ~eb_be;
 assign ST = eb_st;
 assign DAn = ~((ebst == EBST_T2) | (ebst == EBST_T2S));
-//assign MRQn = ~eb_mrq;
 assign MRQn = ~(bm_ebi_req & bm_ebi_mrq);
 assign RW = ~eb_wr;
 assign BCYSTn = ~eb_bcyst;
