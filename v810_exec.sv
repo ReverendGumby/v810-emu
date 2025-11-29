@@ -430,6 +430,7 @@ ctl_ex_t        id_ctl_ex;
 ctl_ma_t        id_ctl_ma;
 ctl_wb_t        id_ctl_wb;
 logic [5:0]     id_ccnt;
+logic           id_invalid;
 
 always @* begin
     id_rf_ra1 = '0;
@@ -438,6 +439,7 @@ always @* begin
     id_ctl_ex = '0;
     id_ctl_ma = '0;
     id_ctl_wb = '0;
+    id_invalid = '0;
 
     casez (ifid_ir[15:10])
         6'b0?0_00?,             // MOV, ADD
@@ -600,7 +602,8 @@ always @* begin
                 id_ctl_ma.Write = '1;
                 id_ctl_wb.MemWidth = ifid_ir[11:10];
             end
-        default: ;
+        default:
+            id_invalid = '1;
     endcase
     if (id_rf_wa == '0)
         id_ctl_wb.RegWrite = '0; // no point in trying
@@ -617,6 +620,9 @@ always @(posedge CLK) if (CE) begin
             id_ccnt <= id_ccnt + 1'd1;
     end
 end
+
+// Decoded an invalid (or unimplemented) instruction
+wire id_invalid_ins = id_invalid & ~id_stall;
 
 assign if_stall = id_ctl_ex.Extend;
 
