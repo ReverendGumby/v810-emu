@@ -43,6 +43,7 @@ int             dmem_ws, dmem_dw;
 wire [31:0]     dmem_di, dmem_do;
 logic [3:0]     dmem_ben;
 logic           dmem_cen;
+logic           dmem_as_io = 0;
 
 logic [31:0]    idbr_mem_do;
 
@@ -152,8 +153,10 @@ end
 assign dut_mem_readyn = '0;
 assign dut_mem_szrqn = '1;
 
+wire dut_mem_iorqn = ~(dut_mem_mrqn & (dut_mem_st == 2'b10));
+
 assign dmem_ben = dut_mem_ben;
-assign dmem_cen = dut_mem_mrqn;
+assign dmem_cen = dmem_as_io ? dut_mem_iorqn : dut_mem_mrqn;
 
 data_bus_resizer idbr
   (
@@ -255,7 +258,7 @@ initial #0 begin
     $finish();
 end
 
-initial #1000 begin
+initial #1200 begin
     $error("Emergency exit!");
     $fatal(1);
 end
@@ -344,6 +347,10 @@ task test_ldst1;
     assert(dmem.mem[4][15:0] == dmem.mem[1][31:16]);
     assert(dmem.mem[3][31:16] == dmem.mem[2][15:0]);
     assert(dmem.mem[3][15:0] == dmem.mem[2][31:16]);
+    assert(dut.rmem[2] == {{16{dmem.mem[1][15]}}, dmem.mem[1][15:0]});
+    assert(dut.rmem[3] == {{16{dmem.mem[1][31]}}, dmem.mem[1][31:16]});
+    assert(dut.rmem[4] == {{16{dmem.mem[2][15]}}, dmem.mem[2][15:0]});
+    assert(dut.rmem[5] == {{16{dmem.mem[2][31]}}, dmem.mem[2][31:16]});
     assert(dut.rmem[8] == dmem.mem[3]);
     assert(dut.rmem[9] == dmem.mem[4]);
 endtask
@@ -360,6 +367,10 @@ task test_ldst2;
     assert(dmem.mem[3][15:8] == dmem.mem[2][23:16]);
     assert(dmem.mem[3][7:0] == dmem.mem[2][31:24]);
     assert(dmem.mem[3][31:16] == '0);
+    assert(dut.rmem[2] == {{24{dmem.mem[1][7]}}, dmem.mem[1][7:0]});
+    assert(dut.rmem[3] == {{24{dmem.mem[1][15]}}, dmem.mem[1][15:8]});
+    assert(dut.rmem[4] == {{24{dmem.mem[2][23]}}, dmem.mem[2][23:16]});
+    assert(dut.rmem[5] == {{24{dmem.mem[2][31]}}, dmem.mem[2][31:24]});
     assert(dut.rmem[8] == dmem.mem[3]);
     assert(dut.rmem[9] == dmem.mem[4]);
 endtask
@@ -422,6 +433,62 @@ task test_stsr0;
     assert(dut.rmem[15] == 32'd15);
 endtask
 
+task test_inout0;
+    imem.load_hex16("dev_imem_inout0.hex");
+    dmem.load_hex("dev_dmem_inout0.hex");
+    dmem_as_io = 1;
+    start_test;
+    end_test;
+    dmem_as_io = 0;
+
+    assert(dmem.mem[3] == dmem.mem[1]);
+    assert(dmem.mem[4] == dmem.mem[2]);
+    assert(dut.rmem[8] == dmem.mem[3]);
+    assert(dut.rmem[9] == dmem.mem[4]);
+endtask
+
+task test_inout1;
+    imem.load_hex16("dev_imem_inout1.hex");
+    dmem.load_hex("dev_dmem_inout1.hex");
+    dmem_as_io = 1;
+    start_test;
+    end_test;
+    dmem_as_io = 0;
+
+    assert(dmem.mem[4][31:16] == dmem.mem[1][15:0]);
+    assert(dmem.mem[4][15:0] == dmem.mem[1][31:16]);
+    assert(dmem.mem[3][31:16] == dmem.mem[2][15:0]);
+    assert(dmem.mem[3][15:0] == dmem.mem[2][31:16]);
+    assert(dut.rmem[2] == {16'b0, dmem.mem[1][15:0]});
+    assert(dut.rmem[3] == {16'b0, dmem.mem[1][31:16]});
+    assert(dut.rmem[4] == {16'b0, dmem.mem[2][15:0]});
+    assert(dut.rmem[5] == {16'b0, dmem.mem[2][31:16]});
+    assert(dut.rmem[8] == dmem.mem[3]);
+    assert(dut.rmem[9] == dmem.mem[4]);
+endtask
+
+task test_inout2;
+    imem.load_hex16("dev_imem_inout2.hex");
+    dmem.load_hex("dev_dmem_inout2.hex");
+    dmem_as_io = 1;
+    start_test;
+    end_test;
+    dmem_as_io = 0;
+
+    assert(dmem.mem[4][31:24] == dmem.mem[1][7:0]);
+    assert(dmem.mem[4][23:16] == dmem.mem[1][15:8]);
+    assert(dmem.mem[4][15:0] == '0);
+    assert(dmem.mem[3][15:8] == dmem.mem[2][23:16]);
+    assert(dmem.mem[3][7:0] == dmem.mem[2][31:24]);
+    assert(dmem.mem[3][31:16] == '0);
+    assert(dut.rmem[2] == {24'b0, dmem.mem[1][7:0]});
+    assert(dut.rmem[3] == {24'b0, dmem.mem[1][15:8]});
+    assert(dut.rmem[4] == {24'b0, dmem.mem[2][23:16]});
+    assert(dut.rmem[5] == {24'b0, dmem.mem[2][31:24]});
+    assert(dut.rmem[8] == dmem.mem[3]);
+    assert(dut.rmem[9] == dmem.mem[4]);
+endtask
+
 task test_all;
     test_mov_rr;
     test_alu0;
@@ -437,6 +504,9 @@ task test_all;
     test_ldsr0;
     test_ldsr1;
     test_stsr0;
+    test_inout0;
+    test_inout1;
+    test_inout2;
 endtask
 
 task test_all_ram_modes;

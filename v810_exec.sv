@@ -9,7 +9,6 @@
 // - TRAP, RETI, HALT
 // - Bit string manipulation (Bstr)
 // - Floating-point operation (Fpp)
-// - IN, OUT
 // - CAXI
 // TODO: System registers EIPC, EIPSW, FEPC, FEPSW, ECR, PIR, TKCW, ADTRE
 // TODO: Interrupts / exceptions
@@ -160,6 +159,7 @@ typedef struct packed {
 typedef struct packed {
     logic       RegWrite;
     logic       MemtoReg;
+    logic       IOtoReg;
     logic [1:0] MemWidth;
 } ctl_wb_t;
 
@@ -602,6 +602,27 @@ always @* begin
                 id_ctl_ma.Write = '1;
                 id_ctl_wb.MemWidth = ifid_ir[11:10];
             end
+        6'b111_0??:             // IN
+            begin
+                id_rf_ra1 = ifid_ir[4:0];
+                id_rf_wa = ifid_ir[9:5];
+                id_ctl_ex.ALUSrc2 = ALUSRC2_IMM16;
+                id_ctl_ex.ALUOp = ALUOP_ADD;
+                id_ctl_ma.IOReq = '1;
+                id_ctl_wb.MemWidth = ifid_ir[11:10];
+                id_ctl_wb.IOtoReg = '1;
+                id_ctl_wb.RegWrite = '1;
+            end
+        6'b111_1??:             // OUT
+            begin
+                id_rf_ra1 = ifid_ir[4:0];
+                id_rf_ra2 = ifid_ir[9:5];
+                id_ctl_ex.ALUSrc2 = ALUSRC2_IMM16;
+                id_ctl_ex.ALUOp = ALUOP_ADD;
+                id_ctl_ma.IOReq = '1;
+                id_ctl_ma.Write = '1;
+                id_ctl_wb.MemWidth = ifid_ir[11:10];
+            end
         default:
             id_invalid = '1;
     endcase
@@ -974,24 +995,26 @@ logic [31:0]    wb_ldmem;
 wire [1:0] wb_mbsel = mawb_mem_bsel;
 wire       wb_mhsel = wb_mbsel[1];
 
-// Sign-extend memory read
+// Sign-extend memory read, zero-extend IO read
 always @* begin
     case (mawb_ctl.wb.MemWidth)
         2'b00: begin
             wb_ldmem[7:0] = mawb_mem_rd[wb_mbsel*8+:8];
-            wb_ldmem[31:8] = {24{wb_ldmem[7]}};
+            wb_ldmem[31:8] = {24{wb_ldmem[7] && mawb_ctl.wb.MemtoReg}};
         end
         2'b01: begin
             wb_ldmem[15:0] = mawb_mem_rd[wb_mhsel*16+:16];
-            wb_ldmem[31:16] = {16{wb_ldmem[15]}};
+            wb_ldmem[31:16] = {16{wb_ldmem[15] && mawb_ctl.wb.MemtoReg}};
         end
         default: // 2'b11
             wb_ldmem = mawb_mem_rd;
     endcase
 end
 
+wire wb_memio_to_reg = mawb_ctl.wb.MemtoReg | mawb_ctl.wb.IOtoReg;
+
 assign rf_wa = mawb_rf_wa;
-assign rf_wd = mawb_ctl.wb.MemtoReg ? wb_ldmem : mawb_alu_out;
+assign rf_wd = wb_memio_to_reg ? wb_ldmem : mawb_alu_out;
 assign rf_we = mawb_ctl.wb.RegWrite & |rf_wa;
 
 
@@ -1020,13 +1043,22 @@ wire haz_flag = haz_flag_ex;
 
 // System Hazard
 //
-// Because LDSR takes effect immediately, i.e., is observed by the
+// (1) Because LDSR takes effect immediately, i.e., is observed by the
 // next instruction, there is a system hazard until LDSR clears MA.
 
-wire haz_sys_ex = idex_ctl.ma.SRWrite;
-wire haz_sys_ma = exma_ctl.ma.SRWrite;
+wire haz_sys1_ex = idex_ctl.ma.SRWrite;
+wire haz_sys1_ma = exma_ctl.ma.SRWrite;
+wire haz_sys1 = haz_sys1_ex | haz_sys1_ma;
 
-wire haz_sys = haz_sys_ex | haz_sys_ma;
+// (2) IN must reach WB before EX can start the next instruction. In
+// other words, IN must be atomic for interrupts / exceptions;
+// restarting it could have unwanted side effects.
+
+wire haz_sys2_ex = idex_ctl.wb.IOtoReg;
+wire haz_sys2_ma = exma_ctl.wb.IOtoReg;
+wire haz_sys2 = haz_sys2_ex | haz_sys2_ma;
+
+wire haz_sys = haz_sys1 | haz_sys2;
 
 assign if_stall = (haz_data | haz_flag | haz_sys) & ~branch_taken;
 assign id_flush = (haz_data | haz_flag | haz_sys);
