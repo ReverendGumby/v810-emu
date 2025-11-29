@@ -153,7 +153,7 @@ end
 assign dut_mem_readyn = '0;
 assign dut_mem_szrqn = '1;
 
-wire dut_mem_iorqn = ~(dut_mem_mrqn & (dut_mem_st == 2'b10));
+wire dut_mem_iorqn = ~(dut_mem_mrqn & ~dut_mem_dan & (dut_mem_st == 2'b10));
 
 assign dmem_ben = dut_mem_ben;
 assign dmem_cen = dmem_as_io ? dut_mem_iorqn : dut_mem_mrqn;
