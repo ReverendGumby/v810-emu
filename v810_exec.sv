@@ -35,9 +35,7 @@ module v810_exec
    output        DMRQ, // Memory Request
    output [1:0]  DST, // Bus Status
    output        DREQ, // Access request
-   input         DACK, // Access acknowledge
-
-   output [1:0]  ST // Status
+   input         DACK // Access acknowledge
    );
 
 
