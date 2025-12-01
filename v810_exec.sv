@@ -760,7 +760,8 @@ end
 //////////////////////////////////////////////////////////////////////
 // Branch condition test
 
-wire aluflags_t psw_alu_fl = PSW_ALU_FL;
+aluflags_t psw_alu_fl;
+assign psw_alu_fl = PSW_ALU_FL;
 
 always @* begin
     case (idex_ctl.ex.Bcond[2:0])
