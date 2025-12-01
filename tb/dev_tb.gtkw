@@ -118,8 +118,8 @@ dev_tb.dut.DACK
 @800200
 -sysreg
 @22
-dev_tb.dut.psw[31:0]
-dev_tb.dut.chcw[31:0]
+dev_tb.dut_sr.psw[31:0]
+dev_tb.dut_sr.chcw[31:0]
 @28
 dev_tb.dut.halted
 @1000200

@@ -1,4 +1,6 @@
+../v810_pkg.sv
 ../v810_exec.sv
 ../v810_regfile.sv
+../v810_sysreg.sv
 ../v810_mem.sv
 ../v810.sv

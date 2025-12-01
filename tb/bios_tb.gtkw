@@ -122,8 +122,8 @@ bios_tb.dut.eu.DACK
 @800200
 -sysreg
 @22
-bios_tb.dut.eu.psw[31:0]
-bios_tb.dut.eu.chcw[31:0]
+bios_tb.dut.sr.psw[31:0]
+bios_tb.dut.sr.chcw[31:0]
 @29
 bios_tb.dut.eu.halted
 @1000200

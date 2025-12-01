@@ -10,8 +10,9 @@
 // - Bit string manipulation (Bstr)
 // - Floating-point operation (Fpp)
 // - CAXI
-// TODO: System registers EIPC, EIPSW, FEPC, FEPSW, ECR, PIR, TKCW, ADTRE
 // TODO: Interrupts / exceptions
+
+import v810_pkg::*;
 
 module v810_exec
   (
@@ -35,7 +36,17 @@ module v810_exec
    output        DMRQ, // Memory Request
    output [1:0]  DST, // Bus Status
    output        DREQ, // Access request
-   input         DACK // Access acknowledge
+   input         DACK, // Access acknowledge
+
+   // System registers
+   output [4:0]  SR_RA,
+   input [31:0]  SR_RD,
+   output [4:0]  SR_WA,
+   output [31:0] SR_WD,
+   output        SR_WE,
+   output [3:0]  PSW_ALU_FL_RESET,
+   output [3:0]  PSW_ALU_FL_SET,
+   input [3:0]   PSW_ALU_FL
    );
 
 
@@ -66,36 +77,14 @@ typedef enum bit [3:0] {
     ALUOP_NOT = 4'b1111
 } aluop_t;
 
-typedef struct packed {
-    logic Carry;
-    logic Over;
-    logic Sign;
-    logic Zero;
-} aluflags_t;
 
-typedef struct packed {
-    logic [11:0] rfu20;
-    logic [3:0] i;              // Interrupt level
-    logic       np;             // NMI Pending
-    logic       ep;             // Exception Pending
-    logic       ae;             // Address Trap Enable
-    logic       id;             // Interrupt Disable
-    logic [1:0] rfu10;
-    logic [5:0] float_fl;       // TODO
-    aluflags_t  alu_fl;
-} psw_t;
+//////////////////////////////////////////////////////////////////////
+// Control registers
 
 wor             if_stall, if_flush;
 wor             id_stall, id_flush;
 wor             ex_stall, ex_flush;
 wor             ma_flush;
-
-
-//////////////////////////////////////////////////////////////////////
-// System Registers
-
-psw_t           psw;
-logic [31:0]    chcw;
 
 logic           halted;         // End of the line
 
@@ -118,19 +107,6 @@ typedef enum bit [2:0] {
     ALUSRC2_DISP26,
     ALUSRC2_CONST_4
 } alu_src2_t;
-
-typedef enum bit [4:0] {
-    SRSEL_EIPC = 5'd0,
-    SRSEL_EIPSW = 5'd1,
-    SRSEL_FEPC = 5'd2,
-    SRSEL_FEPSW = 5'd3,
-    SRSEL_ECR = 5'd4,
-    SRSEL_PSW = 5'd5,
-    SRSEL_PIR = 5'd6,
-    SRSEL_TKCW = 5'd7,
-    SRSEL_CHCW = 5'd24,
-    SRSEL_ADTRE = 5'd25
-} sr_sel_t;
 
 typedef struct packed {
     logic       Extend; // ins. has multiple EX cycles
@@ -784,24 +760,26 @@ end
 //////////////////////////////////////////////////////////////////////
 // Branch condition test
 
+wire aluflags_t psw_alu_fl = PSW_ALU_FL;
+
 always @* begin
     case (idex_ctl.ex.Bcond[2:0])
         BCOND_V:               // Overflow
-            bcond_match = psw.alu_fl.Over;
+            bcond_match = psw_alu_fl.Over;
         BCOND_C:               // Carry / Lower
-            bcond_match = psw.alu_fl.Carry;
+            bcond_match = psw_alu_fl.Carry;
         BCOND_Z:               // Zero / Equal
-            bcond_match = psw.alu_fl.Zero;
+            bcond_match = psw_alu_fl.Zero;
         BCOND_NH:              // Not higher
-            bcond_match = psw.alu_fl.Carry | psw.alu_fl.Zero;
+            bcond_match = psw_alu_fl.Carry | psw_alu_fl.Zero;
         BCOND_S:               // Negative
-            bcond_match = psw.alu_fl.Sign;
+            bcond_match = psw_alu_fl.Sign;
         BCOND_T:               // Always
             bcond_match = '1; 
         BCOND_LT:              // Less than signed
-            bcond_match = psw.alu_fl.Sign ^ psw.alu_fl.Over;
+            bcond_match = psw_alu_fl.Sign ^ psw_alu_fl.Over;
         BCOND_LTE:             // Less than or equal signed
-            bcond_match = (psw.alu_fl.Sign ^ psw.alu_fl.Over) | psw.alu_fl.Zero;
+            bcond_match = (psw_alu_fl.Sign ^ psw_alu_fl.Over) | psw_alu_fl.Zero;
     endcase
     // MSB inverts the test.
     bcond_match ^= idex_ctl.ex.Bcond[3];
@@ -819,12 +797,9 @@ assign id_flush = branch_taken & ~branch_no_id_flush;
 //////////////////////////////////////////////////////////////////////
 // Special stuff
 
-always @* begin
-    case (idex_ctl.ma.SRSel)
-        SRSEL_PSW:      ex_sr_rd = psw;
-        default:        ex_sr_rd = 'X;
-    endcase
-end
+// System register read
+assign SR_RA = idex_ctl.ma.SRSel;
+assign ex_sr_rd = SR_RD;
 
 always @(posedge CLK) if (CE) begin
     if (~RESn) begin
@@ -915,28 +890,16 @@ assign ex_stall = ma_incomplete;
 assign ma_flush = ma_incomplete;
 
 //////////////////////////////////////////////////////////////////////
-// Special Register Write back
+// System Register Write back
 
-always @(posedge CLK) if (CE) begin
-    if (~RESn)
-        psw <= 32'h00008000;
-    else begin
-        if (exma_ctl.ma.SRWrite & (exma_ctl.ma.SRSel == SRSEL_PSW))
-            psw <= exma_rf_rd2;
-        else
-            psw.alu_fl <= (psw.alu_fl & ~exma_ctl.ma.FlagMask) |
-                          (exma_alu_fl & exma_ctl.ma.FlagMask);
-    end
-end
+// PSW ALU flags
+assign PSW_ALU_FL_RESET = exma_ctl.ma.FlagMask & ~exma_alu_fl;
+assign PSW_ALU_FL_SET   = exma_ctl.ma.FlagMask & exma_alu_fl;
 
-always @(posedge CLK) if (CE) begin
-    if (~RESn)
-        chcw <= '0;
-    else begin
-        if (exma_ctl.ma.SRWrite & (exma_ctl.ma.SRSel == SRSEL_CHCW))
-            chcw <= exma_rf_rd2;
-    end
-end
+// System register write
+assign SR_WA = exma_ctl.ma.SRSel;
+assign SR_WD = exma_rf_rd2;
+assign SR_WE = exma_ctl.ma.SRWrite;
 
 //////////////////////////////////////////////////////////////////////
 // MA/WB pipeline register
