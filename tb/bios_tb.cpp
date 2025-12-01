@@ -39,5 +39,5 @@ int main(int argc, char** argv, char**) {
 }
 
 // Local Variables:
-// compile-command: "verilator --cc --exe bios_tb.cpp --build -j 0 --timing --assert --trace-fst --trace-threads 1 --top-module bios_tb --relative-includes ../v810_exec.sv ../v810_mem.sv ram.sv data_bus_resizer.sv bios_tb.sv"
+// compile-command: "verilator --cc --exe bios_tb.cpp --build -j 0 --timing --assert --trace-fst --trace-threads 1 -Wno-TIMESCALEMOD --top-module bios_tb --relative-includes -F v810.files ram.sv data_bus_resizer.sv bios_tb.sv"
 // End:

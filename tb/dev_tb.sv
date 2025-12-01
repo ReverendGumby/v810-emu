@@ -76,9 +76,7 @@ v810_exec dut
    .DMRQ(dut_dmrq),
    .DST(dut_dst),
    .DREQ(dut_dreq),
-   .DACK(dut_dack),
-
-   .ST()
+   .DACK(dut_dack)
    );
 
 v810_mem dut_mem
@@ -236,7 +234,7 @@ task start_test;
     imem_load_boot;
 
     for (int i = 1; i < 32; i++)
-        dut.rmem[i] = 'X;
+        dut.rf.rmem[i] = 'X;
 
     repeat (5) @(posedge clk) ;
     res <= 0;
@@ -291,7 +289,7 @@ task test_mov_rr;
     end_test;
 
     for (int i = 1; i < 32; i++)
-        ;//assert(dut.rmem[i] == 32'h0);
+        assert(dut.rf.rmem[i] == 32'h0);
 endtask
 
 task test_alu0;
@@ -299,10 +297,10 @@ task test_alu0;
     start_test;
     end_test;
 
-    assert(dut.rmem[3] == 32'h1);
-    assert(dut.rmem[5] == 32'h4);
-    assert(dut.rmem[7] == 32'h7);
-    assert(dut.rmem[9] == 32'h11);
+    assert(dut.rf.rmem[3] == 32'h1);
+    assert(dut.rf.rmem[5] == 32'h4);
+    assert(dut.rf.rmem[7] == 32'h7);
+    assert(dut.rf.rmem[9] == 32'h11);
 endtask
 
 task test_alu1;
@@ -310,11 +308,11 @@ task test_alu1;
     start_test;
     end_test;
 
-    assert(dut.rmem[10] == 32'hF0007);
-    assert(dut.rmem[11] == 32'h1);
-    assert(dut.rmem[12] == 32'h7);
-    assert(dut.rmem[13] == 32'h1F);
-    assert(dut.rmem[14] == 32'hE);
+    assert(dut.rf.rmem[10] == 32'hF0007);
+    assert(dut.rf.rmem[11] == 32'h1);
+    assert(dut.rf.rmem[12] == 32'h7);
+    assert(dut.rf.rmem[13] == 32'h1F);
+    assert(dut.rf.rmem[14] == 32'hE);
 endtask
 
 task test_alu2;
@@ -322,7 +320,7 @@ task test_alu2;
     start_test;
     end_test;
 
-    assert(dut.rmem[15] == 32'h0);
+    assert(dut.rf.rmem[15] == 32'h0);
 endtask
 
 task test_ldst0;
@@ -333,8 +331,8 @@ task test_ldst0;
 
     assert(dmem.mem[3] == dmem.mem[1]);
     assert(dmem.mem[4] == dmem.mem[2]);
-    assert(dut.rmem[8] == dmem.mem[3]);
-    assert(dut.rmem[9] == dmem.mem[4]);
+    assert(dut.rf.rmem[8] == dmem.mem[3]);
+    assert(dut.rf.rmem[9] == dmem.mem[4]);
 endtask
 
 task test_ldst1;
@@ -347,12 +345,12 @@ task test_ldst1;
     assert(dmem.mem[4][15:0] == dmem.mem[1][31:16]);
     assert(dmem.mem[3][31:16] == dmem.mem[2][15:0]);
     assert(dmem.mem[3][15:0] == dmem.mem[2][31:16]);
-    assert(dut.rmem[2] == {{16{dmem.mem[1][15]}}, dmem.mem[1][15:0]});
-    assert(dut.rmem[3] == {{16{dmem.mem[1][31]}}, dmem.mem[1][31:16]});
-    assert(dut.rmem[4] == {{16{dmem.mem[2][15]}}, dmem.mem[2][15:0]});
-    assert(dut.rmem[5] == {{16{dmem.mem[2][31]}}, dmem.mem[2][31:16]});
-    assert(dut.rmem[8] == dmem.mem[3]);
-    assert(dut.rmem[9] == dmem.mem[4]);
+    assert(dut.rf.rmem[2] == {{16{dmem.mem[1][15]}}, dmem.mem[1][15:0]});
+    assert(dut.rf.rmem[3] == {{16{dmem.mem[1][31]}}, dmem.mem[1][31:16]});
+    assert(dut.rf.rmem[4] == {{16{dmem.mem[2][15]}}, dmem.mem[2][15:0]});
+    assert(dut.rf.rmem[5] == {{16{dmem.mem[2][31]}}, dmem.mem[2][31:16]});
+    assert(dut.rf.rmem[8] == dmem.mem[3]);
+    assert(dut.rf.rmem[9] == dmem.mem[4]);
 endtask
 
 task test_ldst2;
@@ -367,12 +365,12 @@ task test_ldst2;
     assert(dmem.mem[3][15:8] == dmem.mem[2][23:16]);
     assert(dmem.mem[3][7:0] == dmem.mem[2][31:24]);
     assert(dmem.mem[3][31:16] == '0);
-    assert(dut.rmem[2] == {{24{dmem.mem[1][7]}}, dmem.mem[1][7:0]});
-    assert(dut.rmem[3] == {{24{dmem.mem[1][15]}}, dmem.mem[1][15:8]});
-    assert(dut.rmem[4] == {{24{dmem.mem[2][23]}}, dmem.mem[2][23:16]});
-    assert(dut.rmem[5] == {{24{dmem.mem[2][31]}}, dmem.mem[2][31:24]});
-    assert(dut.rmem[8] == dmem.mem[3]);
-    assert(dut.rmem[9] == dmem.mem[4]);
+    assert(dut.rf.rmem[2] == {{24{dmem.mem[1][7]}}, dmem.mem[1][7:0]});
+    assert(dut.rf.rmem[3] == {{24{dmem.mem[1][15]}}, dmem.mem[1][15:8]});
+    assert(dut.rf.rmem[4] == {{24{dmem.mem[2][23]}}, dmem.mem[2][23:16]});
+    assert(dut.rf.rmem[5] == {{24{dmem.mem[2][31]}}, dmem.mem[2][31:24]});
+    assert(dut.rf.rmem[8] == dmem.mem[3]);
+    assert(dut.rf.rmem[9] == dmem.mem[4]);
 endtask
 
 task test_data_hazard0;
@@ -380,8 +378,8 @@ task test_data_hazard0;
     start_test;
     end_test;
 
-    assert(dut.rmem[2] == 32'd10);
-    assert(dut.rmem[5] == 32'd1);
+    assert(dut.rf.rmem[2] == 32'd10);
+    assert(dut.rf.rmem[5] == 32'd1);
     assert(dmem.mem[112>>2] == 32'd9);
 endtask
 
@@ -390,7 +388,7 @@ task test_bcond0;
     start_test;
     end_test;
 
-    assert(dut.rmem[1] == 32'd0);
+    assert(dut.rf.rmem[1] == 32'd0);
 endtask
 
 task test_setf;
@@ -398,7 +396,7 @@ task test_setf;
     start_test;
     end_test;
 
-    assert(dut.rmem[2] == 32'd0);
+    assert(dut.rf.rmem[2] == 32'd0);
 endtask
 
 task test_jmp_jr_jal;
@@ -406,7 +404,7 @@ task test_jmp_jr_jal;
     start_test;
     end_test;
 
-    assert(dut.rmem[2] == 32'h5);
+    assert(dut.rf.rmem[2] == 32'h5);
 endtask
 
 task test_ldsr0;
@@ -414,7 +412,7 @@ task test_ldsr0;
     start_test;
     end_test;
 
-    assert(dut.rmem[15] == 32'd15);
+    assert(dut.rf.rmem[15] == 32'd15);
 endtask
 
 task test_ldsr1;
@@ -430,7 +428,7 @@ task test_stsr0;
     start_test;
     end_test;
 
-    assert(dut.rmem[15] == 32'd15);
+    assert(dut.rf.rmem[15] == 32'd15);
 endtask
 
 task test_inout0;
@@ -443,8 +441,8 @@ task test_inout0;
 
     assert(dmem.mem[3] == dmem.mem[1]);
     assert(dmem.mem[4] == dmem.mem[2]);
-    assert(dut.rmem[8] == dmem.mem[3]);
-    assert(dut.rmem[9] == dmem.mem[4]);
+    assert(dut.rf.rmem[8] == dmem.mem[3]);
+    assert(dut.rf.rmem[9] == dmem.mem[4]);
 endtask
 
 task test_inout1;
@@ -459,12 +457,12 @@ task test_inout1;
     assert(dmem.mem[4][15:0] == dmem.mem[1][31:16]);
     assert(dmem.mem[3][31:16] == dmem.mem[2][15:0]);
     assert(dmem.mem[3][15:0] == dmem.mem[2][31:16]);
-    assert(dut.rmem[2] == {16'b0, dmem.mem[1][15:0]});
-    assert(dut.rmem[3] == {16'b0, dmem.mem[1][31:16]});
-    assert(dut.rmem[4] == {16'b0, dmem.mem[2][15:0]});
-    assert(dut.rmem[5] == {16'b0, dmem.mem[2][31:16]});
-    assert(dut.rmem[8] == dmem.mem[3]);
-    assert(dut.rmem[9] == dmem.mem[4]);
+    assert(dut.rf.rmem[2] == {16'b0, dmem.mem[1][15:0]});
+    assert(dut.rf.rmem[3] == {16'b0, dmem.mem[1][31:16]});
+    assert(dut.rf.rmem[4] == {16'b0, dmem.mem[2][15:0]});
+    assert(dut.rf.rmem[5] == {16'b0, dmem.mem[2][31:16]});
+    assert(dut.rf.rmem[8] == dmem.mem[3]);
+    assert(dut.rf.rmem[9] == dmem.mem[4]);
 endtask
 
 task test_inout2;
@@ -481,12 +479,12 @@ task test_inout2;
     assert(dmem.mem[3][15:8] == dmem.mem[2][23:16]);
     assert(dmem.mem[3][7:0] == dmem.mem[2][31:24]);
     assert(dmem.mem[3][31:16] == '0);
-    assert(dut.rmem[2] == {24'b0, dmem.mem[1][7:0]});
-    assert(dut.rmem[3] == {24'b0, dmem.mem[1][15:8]});
-    assert(dut.rmem[4] == {24'b0, dmem.mem[2][23:16]});
-    assert(dut.rmem[5] == {24'b0, dmem.mem[2][31:24]});
-    assert(dut.rmem[8] == dmem.mem[3]);
-    assert(dut.rmem[9] == dmem.mem[4]);
+    assert(dut.rf.rmem[2] == {24'b0, dmem.mem[1][7:0]});
+    assert(dut.rf.rmem[3] == {24'b0, dmem.mem[1][15:8]});
+    assert(dut.rf.rmem[4] == {24'b0, dmem.mem[2][23:16]});
+    assert(dut.rf.rmem[5] == {24'b0, dmem.mem[2][31:24]});
+    assert(dut.rf.rmem[8] == dmem.mem[3]);
+    assert(dut.rf.rmem[9] == dmem.mem[4]);
 endtask
 
 task test_all;
@@ -563,5 +561,5 @@ endmodule
 //////////////////////////////////////////////////////////////////////
 
 // Local Variables:
-// compile-command: "iverilog -g2012 -grelative-include -s dev_tb -o dev_tb.vvp ../v810_exec.sv ../v810_mem.sv ram.sv data_bus_resizer.sv dev_tb.sv && ./dev_tb.vvp"
+// compile-command: "iverilog -g2012 -grelative-include -s dev_tb -o dev_tb.vvp ../v810_exec.sv ../v810_mem.sv ../v810_regfile.sv ram.sv data_bus_resizer.sv dev_tb.sv && ./dev_tb.vvp"
 // End:

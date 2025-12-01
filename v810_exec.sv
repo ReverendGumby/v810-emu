@@ -653,58 +653,26 @@ assign id_flush = halted;
 //////////////////////////////////////////////////////////////////////
 // Register file
 
-logic [31:0]    rmem [32];
-logic [4:0]     rf_ra1, rf_ra2;
-logic [31:0]    rf_rd1, rf_rd2;
-logic           rf_re1, rf_re2;
-logic [4:0]     rf_wa;
-logic [31:0]    rf_wd;
-logic           rf_we;
+logic [31:0]    id_rf_rd1, id_rf_rd2;
+logic [4:0]     wb_rf_wa;
+logic [31:0]    wb_rf_wd;
+logic           wb_rf_we;
 
-initial begin
-    rmem[0] = '0;
-end
+v810_regfile rf
+    (
+     .CLK(CLK),
+     .CE(CE),
 
-assign rf_ra1 = id_rf_ra1;
-assign rf_ra2 = id_rf_ra2;
+     .RA1(id_rf_ra1),
+     .RD1(id_rf_rd1),
 
-// Use asynch. logic to forward writes to the read ports.
-always @* begin
-    if (rf_we & (rf_ra1 == rf_wa))
-        rf_rd1 = rf_wd;
-    else
-        rf_rd1 = rmem[rf_ra1];
-end
+     .RA2(id_rf_ra2),
+     .RD2(id_rf_rd2),
 
-always @* begin
-    if (rf_we & (rf_ra2 == rf_wa))
-        rf_rd2 = rf_wd;
-    else
-        rf_rd2 = rmem[rf_ra2];
-end
-
-always @(posedge CLK) if (CE) begin
-    if (rf_we)
-        rmem[rf_wa] <= rf_wd;
-end
-
-// Debugging aid for .vcd
-logic [31:0] rmem00, rmem01, rmem02, rmem03, rmem04, rmem05, rmem06, rmem07, 
-             rmem08, rmem09, rmem10, rmem11, rmem12, rmem13, rmem14, rmem15, 
-             rmem16, rmem17, rmem18, rmem19, rmem20, rmem21, rmem22, rmem23,
-             rmem24, rmem25, rmem26, rmem27, rmem28, rmem29, rmem30, rmem31;
-
-assign rmem00 = rmem[ 0]; assign rmem01 = rmem[ 1]; assign rmem02 = rmem[ 2];
-assign rmem03 = rmem[ 3]; assign rmem04 = rmem[ 4]; assign rmem05 = rmem[ 5];
-assign rmem06 = rmem[ 6]; assign rmem07 = rmem[ 7]; assign rmem08 = rmem[ 8];
-assign rmem09 = rmem[ 9]; assign rmem10 = rmem[10]; assign rmem11 = rmem[11];
-assign rmem12 = rmem[12]; assign rmem13 = rmem[13]; assign rmem14 = rmem[14];
-assign rmem15 = rmem[15]; assign rmem16 = rmem[16]; assign rmem17 = rmem[17];
-assign rmem18 = rmem[18]; assign rmem19 = rmem[19]; assign rmem20 = rmem[20];
-assign rmem21 = rmem[21]; assign rmem22 = rmem[22]; assign rmem23 = rmem[23];
-assign rmem24 = rmem[24]; assign rmem25 = rmem[25]; assign rmem26 = rmem[26];
-assign rmem27 = rmem[27]; assign rmem28 = rmem[28]; assign rmem29 = rmem[29];
-assign rmem30 = rmem[30]; assign rmem31 = rmem[31];
+     .WA(wb_rf_wa),
+     .WD(wb_rf_wd),
+     .WE(wb_rf_we)
+     );
 
 //////////////////////////////////////////////////////////////////////
 // ID/EX pipeline register
@@ -716,8 +684,8 @@ always @(posedge CLK) if (CE) begin
         idex_pc <= ifid_pc;
         idex_ir <= ifid_ir;
         idex_rf_wa <= id_rf_wa;
-        idex_rf_rd1 <= rf_rd1;
-        idex_rf_rd2 <= rf_rd2;
+        idex_rf_rd1 <= id_rf_rd1;
+        idex_rf_rd2 <= id_rf_rd2;
         idex_ctl.ex <= idex_ctl_zero ? '0 : id_ctl_ex;
         idex_ctl.ma <= idex_ctl_zero ? '0 : id_ctl_ma;
         idex_ctl.wb <= idex_ctl_zero ? '0 : id_ctl_wb;
@@ -1011,9 +979,9 @@ end
 
 wire wb_memio_to_reg = mawb_ctl.wb.MemtoReg | mawb_ctl.wb.IOtoReg;
 
-assign rf_wa = mawb_rf_wa;
-assign rf_wd = wb_memio_to_reg ? wb_ldmem : mawb_alu_out;
-assign rf_we = mawb_ctl.wb.RegWrite & |rf_wa;
+assign wb_rf_wa = mawb_rf_wa;
+assign wb_rf_wd = wb_memio_to_reg ? wb_ldmem : mawb_alu_out;
+assign wb_rf_we = mawb_ctl.wb.RegWrite & |wb_rf_wa;
 
 
 //////////////////////////////////////////////////////////////////////
@@ -1022,10 +990,10 @@ assign rf_we = mawb_ctl.wb.RegWrite & |rf_wa;
 
 // Data / Register Hazard
 wire haz_data_ex = idex_ctl.wb.RegWrite & |idex_rf_wa &
-     ((idex_rf_wa == rf_ra1) | (idex_rf_wa == rf_ra2));
+     ((idex_rf_wa == id_rf_ra1) | (idex_rf_wa == id_rf_ra2));
 
 wire haz_data_ma = exma_ctl.wb.RegWrite & |exma_rf_wa &
-     ((exma_rf_wa == rf_ra1) | (exma_rf_wa == rf_ra2));
+     ((exma_rf_wa == id_rf_ra1) | (exma_rf_wa == id_rf_ra2));
 
 // Note: Because reg. writes in WB are forwarded to reads in ID, there
 // is no data hazard in WB.
