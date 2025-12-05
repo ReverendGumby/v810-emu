@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Sat Nov 29 06:11:07 2025
+[*] Fri Dec  5 06:56:40 2025
 [*]
 [dumpfile] "/Users/dhunter/src/mister/Test_V810_MiSTer/rtl/v810/tb/dev_tb.vcd"
-[dumpfile_mtime] "Sat Nov 29 06:10:35 2025"
-[dumpfile_size] 6555834
+[dumpfile_mtime] "Fri Dec  5 06:55:28 2025"
+[dumpfile_size] 631617
 [savefile] "/Users/dhunter/src/mister/Test_V810_MiSTer/rtl/v810/tb/dev_tb.gtkw"
-[timestart] 6216
+[timestart] 343
 [size] 1333 600
 [pos] -1 -1
-*-8.467412 6800 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+*-8.467412 1120 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 [markername] AA
 [markername] BB
 [markername] CC
@@ -97,6 +97,7 @@ dev_tb.dut_mem.SZRQn
 -dut_mem
 @28
 dev_tb.dut.RESn
+@29
 dev_tb.dut.CLK
 @22
 dev_tb.dut.IA[31:0]
@@ -118,13 +119,18 @@ dev_tb.dut.DACK
 @800200
 -sysreg
 @22
+dev_tb.dut_sr.eipc[31:0]
+dev_tb.dut_sr.eipsw[31:0]
+dev_tb.dut_sr.fepc[31:0]
+dev_tb.dut_sr.fepsw[31:0]
+dev_tb.dut_sr.ecr[31:0]
 dev_tb.dut_sr.psw[31:0]
 dev_tb.dut_sr.chcw[31:0]
 @28
 dev_tb.dut.halted
 @1000200
 -sysreg
-@c00200
+@800200
 -if
 @28
 dev_tb.dut.if_stall
@@ -147,7 +153,14 @@ dev_tb.dut.pc[31:0]
 dev_tb.dut.pcn[31:0]
 dev_tb.dut.pd[31:0]
 dev_tb.dut.ir[31:0]
-@1401200
+@28
+dev_tb.dut.if_exc_start
+dev_tb.dut.if_exc_done
+@22
+dev_tb.dut.if_exc_cc[15:0]
+dev_tb.dut.if_exc_cc_d[15:0]
+dev_tb.dut.if_exc_a[31:0]
+@1000200
 -if
 @800200
 -id
@@ -157,6 +170,8 @@ dev_tb.dut.id_flush
 @22
 dev_tb.dut.ifid_pc[31:0]
 dev_tb.dut.ifid_ir[31:0]
+@28
+dev_tb.dut.ifid_exc
 @c00200
 -rmem
 @22
@@ -200,7 +215,6 @@ dev_tb.dut.id_rf_ra2[4:0]
 dev_tb.dut.id_rf_rd1[31:0]
 dev_tb.dut.id_rf_rd2[31:0]
 dev_tb.dut.wb_rf_wa[4:0]
-@23
 dev_tb.dut.wb_rf_wd[31:0]
 @28
 dev_tb.dut.wb_rf_we
@@ -219,7 +233,7 @@ dev_tb.dut.idex_ir[31:0]
 dev_tb.dut.idex_rf_rd1[31:0]
 dev_tb.dut.idex_rf_rd2[31:0]
 dev_tb.dut.idex_rf_wa[4:0]
-dev_tb.dut.idex_ctl[36:0]
+dev_tb.dut.idex_ctl[42:0]
 dev_tb.dut.alu_in1[31:0]
 dev_tb.dut.alu_in2[31:0]
 dev_tb.dut.alu_op[3:0]

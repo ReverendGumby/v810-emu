@@ -21,15 +21,21 @@ module v810_sysreg
    input         WE,
 
    // Dedicated register interface
-   input [3:0]   PSW_ALU_FL_RESET,
-   input [3:0]   PSW_ALU_FL_SET,
-   output [3:0]  PSW_ALU_FL
+   output        psw_t PSW,
+   input         psw_t PSW_RESET,
+   input         psw_t PSW_SET,
+
+   input [15:0]  ECR_CC,
+   input         ECR_SET_EICC,
+   input         ECR_SET_FECC
    );
 
 //////////////////////////////////////////////////////////////////////
 // The registers
 
-psw_t           psw;
+logic [31:0]    eipc, fepc;
+psw_t           eipsw, fepsw, psw;
+ecr_t           ecr;
 logic [31:0]    chcw;
 
 //////////////////////////////////////////////////////////////////////
@@ -39,8 +45,13 @@ logic [31:0]    rd;
 
 always @* begin
     case (RA)
+        SRSEL_EIPC:     rd = eipc;
+        SRSEL_EIPSW:    rd = eipsw;
+        SRSEL_FEPC:     rd = fepc;
+        SRSEL_FEPSW:    rd = fepsw;
+        SRSEL_ECR:      rd = ecr;
         SRSEL_PSW:      rd = psw;
-        SRSEL_CHCW:		rd = chcw;
+        SRSEL_CHCW:     rd = chcw;
         default:        rd = 'X;
     endcase
 end
@@ -51,24 +62,55 @@ always @(posedge CLK) if (CE) begin
     if (~RESn)
         psw <= 32'h00008000;
     else begin
-        if (WE & (WA == SRSEL_PSW))
+        if (WE & (WA == SRSEL_PSW)) begin
             psw <= WD;
+        end
         else
-            psw.alu_fl <= (psw.alu_fl & ~PSW_ALU_FL_RESET) | PSW_ALU_FL_SET;
+            psw <= (psw & ~PSW_RESET) | PSW_SET;
+        psw.rfu20 <= '0;
+        psw.rfu10 <= '0;
     end
-
 end
 
 always @(posedge CLK) if (CE) begin
     if (~RESn) begin
+        // TODO: Reset to '0 after reset triggers exception
+        ecr <= 32'h0000fff0;
+    end
+    else begin
+        if (ECR_SET_EICC)
+            ecr.eicc <= ECR_CC;
+        else if (ECR_SET_FECC)
+            ecr.fecc <= ECR_CC;
+    end
+end
+
+always @(posedge CLK) if (CE) begin
+    if (~RESn) begin
+        eipc <= '0;
+        eipsw <= '0;
+        fepc <= '0;
+        fepsw <= '0;
         chcw <= '0;
     end
     else begin
         if (WE) begin
             case (WA)
+                SRSEL_EIPC:     eipc <= WD;
+                SRSEL_EIPSW:    eipsw <= WD;
+                SRSEL_FEPC:     fepc <= WD;
+                SRSEL_FEPSW:    fepsw <= WD;
                 SRSEL_CHCW:     chcw <= WD;
                 default:        ;
             endcase
+
+            // Some register bits are fixed at 0
+            eipc[0] <= '0;
+            eipsw.rfu20 <= '0;
+            eipsw.rfu10 <= '0;
+            fepc[0] <= '0;
+            fepsw.rfu20 <= '0;
+            fepsw.rfu10 <= '0;
         end
     end
 end
@@ -76,6 +118,6 @@ end
 //////////////////////////////////////////////////////////////////////
 // Dedicated read ports
 
-assign PSW_ALU_FL = psw.alu_fl;
+assign PSW = psw;
 
 endmodule

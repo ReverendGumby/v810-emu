@@ -6,7 +6,7 @@
 
 // TODO: These instructions:
 // - MUL(U), DIV(U)
-// - TRAP, RETI, HALT
+// - RETI, HALT
 // - Bit string manipulation (Bstr)
 // - Floating-point operation (Fpp)
 // - CAXI
@@ -44,9 +44,12 @@ module v810_exec
    output [4:0]  SR_WA,
    output [31:0] SR_WD,
    output        SR_WE,
-   output [3:0]  PSW_ALU_FL_RESET,
-   output [3:0]  PSW_ALU_FL_SET,
-   input [3:0]   PSW_ALU_FL
+   input         psw_t PSW,
+   output        psw_t PSW_RESET,
+   output        psw_t PSW_SET,
+   output [15:0] ECR_CC,
+   output        ECR_SET_EICC,
+   output        ECR_SET_FECC
    );
 
 
@@ -92,11 +95,13 @@ logic           halted;         // End of the line
 //////////////////////////////////////////////////////////////////////
 // Pipeline registers
 
-typedef enum bit [1:0] {
-    ALUSRC1_RF_RD1 = 2'd0,
+typedef enum bit [2:0] {
+    ALUSRC1_RF_RD1 = 3'd0,
     ALUSRC1_IMM5,
     ALUSRC1_PC,
-    ALUSRC1_BMATCH
+    ALUSRC1_BMATCH,
+    ALUSRC1_SR_RD,
+    ALUSRC1_EXC_A
 } alu_src1_t;
 
 typedef enum bit [2:0] {
@@ -115,6 +120,7 @@ typedef struct packed {
     alu_src2_t  ALUSrc2;
     logic       Branch;
     logic [3:0] Bcond;
+    sr_sel_t    SRSelRead;
     logic       Halt; // TODO: there's gotta be a better way
 } ctl_ex_t;
 
@@ -124,7 +130,7 @@ typedef struct packed {
     logic       IOReq;
     logic       FaultReq;
     aluflags_t  FlagMask;
-    sr_sel_t    SRSel;
+    sr_sel_t    SRSelWrite;
     logic       SRWrite;
     logic       SRtoMem;
     logic       SRtoReg;
@@ -140,6 +146,7 @@ typedef struct packed {
 // IF/ID
 logic [31:0]    ifid_pc;
 logic [31:0]    ifid_ir;
+logic           ifid_exc;
 
 // ID/EX
 logic [31:0]    idex_pc;
@@ -382,12 +389,55 @@ wire ir_valid = if_pc_inc;
 assign if_fetch_en = ~(ir_valid & if_stall);
 
 //////////////////////////////////////////////////////////////////////
+// Interrupt / Exception Ingress
+
+wor             if_exc_start;
+logic           if_exc_start_d;
+logic           if_exc_done;
+logic [15:0]    if_exc_cc, if_exc_cc_d;
+logic [31:0]    if_exc_a;
+logic           if_exc_trap_called;
+
+assign if_exc_start = if_exc_trap_called;
+
+localparam [15:0] exc_trap_cc = 16'hffa0;
+always @* begin
+    if_exc_cc = '0;
+    if (if_exc_trap_called) begin
+        if_exc_cc = {exc_trap_cc[15:5], ifid_ir[4:0]};
+    end
+end
+
+always @(posedge CLK) if (CE) begin
+    if (~RESn) begin
+        if_exc_cc_d <= '0;
+    end
+    else if (~if_stall & if_exc_start) begin
+        if_exc_cc_d <= if_exc_cc;
+    end
+end
+
+assign ECR_CC = if_exc_cc_d;
+
+always @* begin
+    if_exc_a = {16'hffff, if_exc_cc_d};
+    if (PSW.np)                 // duplexed exception
+        if_exc_a[15:0] = 16'hffd0;
+    else if (if_exc_a[7:4] == 4'h7) // codes FF6x-FF7x use address 'FF60
+        if_exc_a[7:4] = 4'h6;
+    if_exc_a[3:0] = 4'h0;
+end
+
+assign if_stall = ifid_exc & ~if_exc_done;
+
+//////////////////////////////////////////////////////////////////////
 // IF/ID pipeline register
 
 always @(posedge CLK) if (CE) begin
     if (~RESn | ~if_stall) begin
         ifid_pc <= pc;
         ifid_ir <= ir;
+        ifid_exc <= if_exc_start;
     end
 end
 
@@ -403,6 +453,8 @@ logic [4:0]     id_rf_ra1, id_rf_ra2, id_rf_wa;
 ctl_ex_t        id_ctl_ex;
 ctl_ma_t        id_ctl_ma;
 ctl_wb_t        id_ctl_wb;
+logic           id_exc_set_ecr, id_exc_set_psw;
+logic           id_trap;
 logic [5:0]     id_ccnt;
 logic           id_invalid;
 
@@ -413,193 +465,238 @@ always @* begin
     id_ctl_ex = '0;
     id_ctl_ma = '0;
     id_ctl_wb = '0;
+    id_exc_set_ecr = '0;
+    id_exc_set_psw = '0;
+    id_trap = '0;
     id_invalid = '0;
 
-    casez (ifid_ir[15:10])
-        6'b0?0_00?,             // MOV, ADD
-        6'b000_010,             // SUB
-        6'b0?0_10?,             // SHL, SHR
-        6'b0?0_111,             // SAR
-        6'b001_10?,             // OR, AND
-        6'b001_110,             // XOR
-        6'b001_111:             // NOT
-            begin
-                if (~(~ifid_ir[15] &
-                      ((ifid_ir[14:10] == 5'b01111) // NOT
-                       | (ifid_ir[13:10] == 4'b0000)))) // MOV
-                    id_rf_ra2 = ifid_ir[9:5];
-                id_rf_wa = ifid_ir[9:5];
-                if (ifid_ir[14])
-                    id_ctl_ex.ALUSrc1 = ALUSRC1_IMM5;
-                else
-                    id_rf_ra1 = ifid_ir[4:0];
-                id_ctl_ex.ALUOp = ifid_ir[13:10];
-                id_ctl_wb.RegWrite = '1;
-                if (id_ctl_ex.ALUOp != ALUOP_MOV) begin
-                    id_ctl_ma.FlagMask = '1;
-                    id_ctl_ma.FlagMask.Carry = (id_ctl_ex.ALUOp == ALUOP_ADD)
-                        | (id_ctl_ex.ALUOp == ALUOP_SUB);
-                end
-            end
-        6'b000_110:             // JMP
-            begin
-                id_rf_ra1 = ifid_ir[4:0];
-                id_ctl_ex.ALUOp = ALUOP_MOV;
-                id_ctl_ex.Branch = '1;
-                id_ctl_ex.Bcond[2:0] = BCOND_T;
-            end
-        6'b0?0_011:             // CMP
-            begin
-                id_rf_ra2 = ifid_ir[9:5];
-                if (ifid_ir[14])
-                    id_ctl_ex.ALUSrc1 = ALUSRC1_IMM5;
-                else
-                    id_rf_ra1 = ifid_ir[4:0];
-                id_ctl_ex.ALUOp = ALUOP_SUB;
-                id_ctl_ma.FlagMask = '1;
-            end
-        6'b010_010:             // SETF
-            begin
-                id_rf_wa = ifid_ir[9:5];
-                id_ctl_ex.ALUSrc1 = ALUSRC1_BMATCH;
-                id_ctl_ex.ALUOp = ALUOP_MOV;
-                id_ctl_ex.Bcond = ifid_ir[3:0];
-                id_ctl_wb.RegWrite = '1;
-            end
-        6'b011_010:             // HALT
-            begin
-                id_rf_ra2 = ifid_ir[9:5];
+    if (ifid_exc) begin
+        // Exception processing
+        case (id_ccnt)
+            'd0: begin
                 id_ctl_ex.ALUSrc1 = ALUSRC1_PC;
                 id_ctl_ex.ALUOp = ALUOP_MOV;
-                id_ctl_ex.Halt = '1;
-                id_ctl_ma.FaultReq = '1;
-                id_ctl_ma.Write = '1;
-                id_ctl_ma.SRSel = SRSEL_PSW;
-                id_ctl_ma.SRtoMem = '1;
-                id_ctl_wb.MemWidth = 2'd1; // halfword
-            end
-        6'b011_100:             // LDSR
-            begin
-                id_rf_ra2 = ifid_ir[9:5];
-                id_ctl_ma.SRSel = sr_sel_t'(ifid_ir[4:0]);
+                id_ctl_ma.SRSelWrite = PSW.ep ? SRSEL_FEPC : SRSEL_EIPC;
                 id_ctl_ma.SRWrite = '1;
+                id_ctl_ex.Extend = '1;
             end
-        6'b011_101:             // STSR
-            begin
-                id_rf_wa = ifid_ir[9:5];
-                id_ctl_ma.SRSel = sr_sel_t'(ifid_ir[4:0]);
-                id_ctl_ma.SRtoReg = '1;
-                id_ctl_wb.RegWrite = '1;
+            'd1: begin
+                id_ctl_ex.ALUSrc1 = ALUSRC1_SR_RD;
+                id_ctl_ex.ALUOp = ALUOP_MOV;
+                id_ctl_ex.SRSelRead = SRSEL_PSW;
+                id_ctl_ma.SRSelWrite = PSW.ep ? SRSEL_FEPSW : SRSEL_EIPSW;
+                id_ctl_ma.SRWrite = '1;
+                id_ctl_ex.Extend = '1;
             end
-        6'b100_???:             // Bcond (branch)
-            begin
-                id_ctl_ex.ALUSrc1 = ALUSRC1_PC;
-                id_ctl_ex.ALUSrc2 = ALUSRC2_DISP9;
-                id_ctl_ex.ALUOp = ALUOP_ADD;
-                id_ctl_ex.Branch = '1;
-                id_ctl_ex.Bcond = ifid_ir[12:9];
+            'd2: begin
+                id_exc_set_ecr = '1;
+                id_ctl_ex.Extend = '1;
             end
-        6'b101_000,             // MOVEA
-        6'b101_001:             // ADDI
-            begin
-                id_rf_ra1 = ifid_ir[4:0];
-                id_rf_wa = ifid_ir[9:5];
-                id_ctl_ex.ALUSrc2 = ALUSRC2_IMM16;
-                id_ctl_ex.ALUOp = ALUOP_ADD;
-                id_ctl_wb.RegWrite = '1;
-                if (ifid_ir[10]) // ADDI
-                    id_ctl_ma.FlagMask = '1;
+            'd3: begin
+                id_exc_set_psw = '1;
+                id_ctl_ex.Extend = '1;
             end
-        6'b101_10?,             // ORI, ANDI
-        6'b101_110:             // XORI
-            begin
-                id_rf_ra1 = ifid_ir[4:0];
-                id_rf_wa = ifid_ir[9:5];
-                id_ctl_ex.ALUSrc2 = ALUSRC2_IMM16;
-                id_ctl_ex.ALUOp = ifid_ir[13:10];
-                id_ctl_wb.RegWrite = '1;
-                id_ctl_ma.FlagMask = '1;
-                id_ctl_ma.FlagMask.Carry = '0;
-            end
-        6'b101_010:             // JR
-            begin
-                id_ctl_ex.ALUSrc1 = ALUSRC1_PC;
-                id_ctl_ex.ALUSrc2 = ALUSRC2_DISP26;
-                id_ctl_ex.ALUOp = ALUOP_ADD;
+            'd4: begin
+                id_ctl_ex.ALUSrc1 = ALUSRC1_EXC_A;
+                id_ctl_ex.ALUOp = ALUOP_MOV;
                 id_ctl_ex.Branch = '1;
                 id_ctl_ex.Bcond[2:0] = BCOND_T;
             end
-        6'b101_011:             // JAL
-            begin
-                if (id_ccnt == 'd0) begin
+            default: ;
+        endcase
+    end
+    else
+        casez (ifid_ir[15:10])
+            6'b0?0_00?,             // MOV, ADD
+            6'b000_010,             // SUB
+            6'b0?0_10?,             // SHL, SHR
+            6'b0?0_111,             // SAR
+            6'b001_10?,             // OR, AND
+            6'b001_110,             // XOR
+            6'b001_111:             // NOT
+                begin
+                    if (~(~ifid_ir[15] &
+                          ((ifid_ir[14:10] == 5'b01111) // NOT
+                           | (ifid_ir[13:10] == 4'b0000)))) // MOV
+                        id_rf_ra2 = ifid_ir[9:5];
+                    id_rf_wa = ifid_ir[9:5];
+                    if (ifid_ir[14])
+                        id_ctl_ex.ALUSrc1 = ALUSRC1_IMM5;
+                    else
+                        id_rf_ra1 = ifid_ir[4:0];
+                    id_ctl_ex.ALUOp = ifid_ir[13:10];
+                    id_ctl_wb.RegWrite = '1;
+                    if (id_ctl_ex.ALUOp != ALUOP_MOV) begin
+                        id_ctl_ma.FlagMask = '1;
+                        id_ctl_ma.FlagMask.Carry = (id_ctl_ex.ALUOp == ALUOP_ADD)
+                            | (id_ctl_ex.ALUOp == ALUOP_SUB);
+                    end
+                end
+            6'b000_110:             // JMP
+                begin
+                    id_rf_ra1 = ifid_ir[4:0];
+                    id_ctl_ex.ALUOp = ALUOP_MOV;
+                    id_ctl_ex.Branch = '1;
+                    id_ctl_ex.Bcond[2:0] = BCOND_T;
+                end
+            6'b0?0_011:             // CMP
+                begin
+                    id_rf_ra2 = ifid_ir[9:5];
+                    if (ifid_ir[14])
+                        id_ctl_ex.ALUSrc1 = ALUSRC1_IMM5;
+                    else
+                        id_rf_ra1 = ifid_ir[4:0];
+                    id_ctl_ex.ALUOp = ALUOP_SUB;
+                    id_ctl_ma.FlagMask = '1;
+                end
+            6'b010_010:             // SETF
+                begin
+                    id_rf_wa = ifid_ir[9:5];
+                    id_ctl_ex.ALUSrc1 = ALUSRC1_BMATCH;
+                    id_ctl_ex.ALUOp = ALUOP_MOV;
+                    id_ctl_ex.Bcond = ifid_ir[3:0];
+                    id_ctl_wb.RegWrite = '1;
+                end
+            6'b011_000:             // TRAP
+                begin
+                    id_trap = '1;
+                end
+            6'b011_010:             // HALT
+                begin
+                    id_rf_ra2 = ifid_ir[9:5];
+                    id_ctl_ex.ALUSrc1 = ALUSRC1_PC;
+                    id_ctl_ex.ALUOp = ALUOP_MOV;
+                    id_ctl_ex.SRSelRead = SRSEL_PSW;
+                    id_ctl_ex.Halt = '1;
+                    id_ctl_ma.FaultReq = '1;
+                    id_ctl_ma.Write = '1;
+                    id_ctl_ma.SRtoMem = '1;
+                    id_ctl_wb.MemWidth = 2'd1; // halfword
+                end
+            6'b011_100:             // LDSR
+                begin
+                    id_rf_ra1 = ifid_ir[9:5];
+                    id_ctl_ex.ALUOp = ALUOP_MOV;
+                    id_ctl_ma.SRSelWrite = sr_sel_t'(ifid_ir[4:0]);
+                    id_ctl_ma.SRWrite = '1;
+                end
+            6'b011_101:             // STSR
+                begin
+                    id_rf_wa = ifid_ir[9:5];
+                    id_ctl_ex.SRSelRead = sr_sel_t'(ifid_ir[4:0]);
+                    id_ctl_ma.SRtoReg = '1;
+                    id_ctl_wb.RegWrite = '1;
+                end
+            6'b100_???:             // Bcond (branch)
+                begin
+                    id_ctl_ex.ALUSrc1 = ALUSRC1_PC;
+                    id_ctl_ex.ALUSrc2 = ALUSRC2_DISP9;
+                    id_ctl_ex.ALUOp = ALUOP_ADD;
+                    id_ctl_ex.Branch = '1;
+                    id_ctl_ex.Bcond = ifid_ir[12:9];
+                end
+            6'b101_000,             // MOVEA
+                6'b101_001:             // ADDI
+                    begin
+                        id_rf_ra1 = ifid_ir[4:0];
+                        id_rf_wa = ifid_ir[9:5];
+                        id_ctl_ex.ALUSrc2 = ALUSRC2_IMM16;
+                        id_ctl_ex.ALUOp = ALUOP_ADD;
+                        id_ctl_wb.RegWrite = '1;
+                        if (ifid_ir[10]) // ADDI
+                            id_ctl_ma.FlagMask = '1;
+                    end
+            6'b101_10?,             // ORI, ANDI
+                6'b101_110:             // XORI
+                    begin
+                        id_rf_ra1 = ifid_ir[4:0];
+                        id_rf_wa = ifid_ir[9:5];
+                        id_ctl_ex.ALUSrc2 = ALUSRC2_IMM16;
+                        id_ctl_ex.ALUOp = ifid_ir[13:10];
+                        id_ctl_wb.RegWrite = '1;
+                        id_ctl_ma.FlagMask = '1;
+                        id_ctl_ma.FlagMask.Carry = '0;
+                    end
+            6'b101_010:             // JR
+                begin
                     id_ctl_ex.ALUSrc1 = ALUSRC1_PC;
                     id_ctl_ex.ALUSrc2 = ALUSRC2_DISP26;
                     id_ctl_ex.ALUOp = ALUOP_ADD;
                     id_ctl_ex.Branch = '1;
                     id_ctl_ex.Bcond[2:0] = BCOND_T;
-                    id_ctl_ex.Extend = '1;
                 end
-                else if (id_ccnt == 'd1) begin
-                    id_rf_wa = 5'd31;
-                    id_ctl_ex.ALUSrc1 = ALUSRC1_PC;
-                    id_ctl_ex.ALUSrc2 = ALUSRC2_CONST_4;
+            6'b101_011:             // JAL
+                begin
+                    if (id_ccnt == 'd0) begin
+                        id_ctl_ex.ALUSrc1 = ALUSRC1_PC;
+                        id_ctl_ex.ALUSrc2 = ALUSRC2_DISP26;
+                        id_ctl_ex.ALUOp = ALUOP_ADD;
+                        id_ctl_ex.Branch = '1;
+                        id_ctl_ex.Bcond[2:0] = BCOND_T;
+                        id_ctl_ex.Extend = '1;
+                    end
+                    else if (id_ccnt == 'd1) begin
+                        id_rf_wa = 5'd31;
+                        id_ctl_ex.ALUSrc1 = ALUSRC1_PC;
+                        id_ctl_ex.ALUSrc2 = ALUSRC2_CONST_4;
+                        id_ctl_ex.ALUOp = ALUOP_ADD;
+                        id_ctl_wb.RegWrite = '1;
+                    end
+                end
+            6'b101_111:             // MOVHI
+                begin
+                    id_rf_ra1 = ifid_ir[4:0];
+                    id_rf_wa = ifid_ir[9:5];
+                    id_ctl_ex.ALUSrc2 = ALUSRC2_IMM16_HI;
                     id_ctl_ex.ALUOp = ALUOP_ADD;
                     id_ctl_wb.RegWrite = '1;
                 end
-            end
-        6'b101_111:             // MOVHI
-            begin
-                id_rf_ra1 = ifid_ir[4:0];
-                id_rf_wa = ifid_ir[9:5];
-                id_ctl_ex.ALUSrc2 = ALUSRC2_IMM16_HI;
-                id_ctl_ex.ALUOp = ALUOP_ADD;
-                id_ctl_wb.RegWrite = '1;
-            end
-        6'b110_0??:             // LD
-            begin
-                id_rf_ra1 = ifid_ir[4:0];
-                id_rf_wa = ifid_ir[9:5];
-                id_ctl_ex.ALUSrc2 = ALUSRC2_IMM16;
-                id_ctl_ex.ALUOp = ALUOP_ADD;
-                id_ctl_ma.MemReq = '1;
-                id_ctl_wb.MemWidth = ifid_ir[11:10];
-                id_ctl_wb.MemtoReg = '1;
-                id_ctl_wb.RegWrite = '1;
-            end
-        6'b110_1??:             // ST
-            begin
-                id_rf_ra1 = ifid_ir[4:0];
-                id_rf_ra2 = ifid_ir[9:5];
-                id_ctl_ex.ALUSrc2 = ALUSRC2_IMM16;
-                id_ctl_ex.ALUOp = ALUOP_ADD;
-                id_ctl_ma.MemReq = '1;
-                id_ctl_ma.Write = '1;
-                id_ctl_wb.MemWidth = ifid_ir[11:10];
-            end
-        6'b111_0??:             // IN
-            begin
-                id_rf_ra1 = ifid_ir[4:0];
-                id_rf_wa = ifid_ir[9:5];
-                id_ctl_ex.ALUSrc2 = ALUSRC2_IMM16;
-                id_ctl_ex.ALUOp = ALUOP_ADD;
-                id_ctl_ma.IOReq = '1;
-                id_ctl_wb.MemWidth = ifid_ir[11:10];
-                id_ctl_wb.IOtoReg = '1;
-                id_ctl_wb.RegWrite = '1;
-            end
-        6'b111_1??:             // OUT
-            begin
-                id_rf_ra1 = ifid_ir[4:0];
-                id_rf_ra2 = ifid_ir[9:5];
-                id_ctl_ex.ALUSrc2 = ALUSRC2_IMM16;
-                id_ctl_ex.ALUOp = ALUOP_ADD;
-                id_ctl_ma.IOReq = '1;
-                id_ctl_ma.Write = '1;
-                id_ctl_wb.MemWidth = ifid_ir[11:10];
-            end
-        default:
-            id_invalid = '1;
-    endcase
+            6'b110_0??:             // LD
+                begin
+                    id_rf_ra1 = ifid_ir[4:0];
+                    id_rf_wa = ifid_ir[9:5];
+                    id_ctl_ex.ALUSrc2 = ALUSRC2_IMM16;
+                    id_ctl_ex.ALUOp = ALUOP_ADD;
+                    id_ctl_ma.MemReq = '1;
+                    id_ctl_wb.MemWidth = ifid_ir[11:10];
+                    id_ctl_wb.MemtoReg = '1;
+                    id_ctl_wb.RegWrite = '1;
+                end
+            6'b110_1??:             // ST
+                begin
+                    id_rf_ra1 = ifid_ir[4:0];
+                    id_rf_ra2 = ifid_ir[9:5];
+                    id_ctl_ex.ALUSrc2 = ALUSRC2_IMM16;
+                    id_ctl_ex.ALUOp = ALUOP_ADD;
+                    id_ctl_ma.MemReq = '1;
+                    id_ctl_ma.Write = '1;
+                    id_ctl_wb.MemWidth = ifid_ir[11:10];
+                end
+            6'b111_0??:             // IN
+                begin
+                    id_rf_ra1 = ifid_ir[4:0];
+                    id_rf_wa = ifid_ir[9:5];
+                    id_ctl_ex.ALUSrc2 = ALUSRC2_IMM16;
+                    id_ctl_ex.ALUOp = ALUOP_ADD;
+                    id_ctl_ma.IOReq = '1;
+                    id_ctl_wb.MemWidth = ifid_ir[11:10];
+                    id_ctl_wb.IOtoReg = '1;
+                    id_ctl_wb.RegWrite = '1;
+                end
+            6'b111_1??:             // OUT
+                begin
+                    id_rf_ra1 = ifid_ir[4:0];
+                    id_rf_ra2 = ifid_ir[9:5];
+                    id_ctl_ex.ALUSrc2 = ALUSRC2_IMM16;
+                    id_ctl_ex.ALUOp = ALUOP_ADD;
+                    id_ctl_ma.IOReq = '1;
+                    id_ctl_ma.Write = '1;
+                    id_ctl_wb.MemWidth = ifid_ir[11:10];
+                end
+            default:
+                id_invalid = '1;
+        endcase
+
     if (id_rf_wa == '0)
         id_ctl_wb.RegWrite = '0; // no point in trying
 end
@@ -608,7 +705,7 @@ end
 always @(posedge CLK) if (CE) begin
     if (~RESn)
         id_ccnt <= '0;
-    else if (~id_stall) begin
+    else if (~(id_stall | id_flush)) begin
         if (~id_ctl_ex.Extend)
             id_ccnt <= '0;
         else
@@ -625,6 +722,26 @@ assign if_stall = id_ctl_ex.Extend;
 assign if_stall = halted;
 assign if_flush = id_ctl_ex.Halt | halted;
 assign id_flush = halted;
+
+// Exception signals
+wire id_exc_set_ecr_go = id_exc_set_psw & ~(id_stall | id_flush);
+assign ECR_SET_EICC = id_exc_set_ecr_go & (~PSW.ep & ~PSW.np);
+assign ECR_SET_FECC = id_exc_set_ecr_go & (PSW.ep & ~PSW.np);
+
+wire id_exc_set_psw_go = id_exc_set_psw & ~(id_stall | id_flush);
+assign PSW_RESET.id = '0;
+assign PSW_RESET.ae = id_exc_set_psw_go;
+assign PSW_RESET.ep = '0;
+assign PSW_RESET.np = '0;
+assign PSW_RESET.i = '0;
+assign PSW_SET.id = id_exc_set_psw_go;
+assign PSW_SET.ae = '0;
+assign PSW_SET.ep = id_exc_set_psw_go;
+assign PSW_SET.np = id_exc_set_psw_go & PSW.ep;
+assign PSW_SET.i = '0;
+
+assign if_exc_trap_called = id_trap;
+assign if_exc_done = ifid_exc & ~(id_ctl_ex.Extend | id_flush);
 
 //////////////////////////////////////////////////////////////////////
 // Register file
@@ -702,6 +819,8 @@ always @* begin
         ALUSRC1_IMM5:   alu_in1 = idex_imm5_ext;
         ALUSRC1_PC:     alu_in1 = idex_pc;
         ALUSRC1_BMATCH: alu_in1 = {31'b0, bcond_match};
+        ALUSRC1_SR_RD:  alu_in1 = ex_sr_rd;
+        ALUSRC1_EXC_A:  alu_in1 = if_exc_a;
         default: ;
     endcase
 end
@@ -761,7 +880,7 @@ end
 // Branch condition test
 
 aluflags_t psw_alu_fl;
-assign psw_alu_fl = PSW_ALU_FL;
+assign psw_alu_fl = PSW.alu_fl;
 
 always @* begin
     case (idex_ctl.ex.Bcond[2:0])
@@ -799,7 +918,7 @@ assign id_flush = branch_taken & ~branch_no_id_flush;
 // Special stuff
 
 // System register read
-assign SR_RA = idex_ctl.ma.SRSel;
+assign SR_RA = idex_ctl.ex.SRSelRead;
 assign ex_sr_rd = SR_RD;
 
 always @(posedge CLK) if (CE) begin
@@ -893,13 +1012,23 @@ assign ma_flush = ma_incomplete;
 //////////////////////////////////////////////////////////////////////
 // System Register Write back
 
+aluflags_t psw_reset_alu_fl, psw_set_alu_fl;
+
 // PSW ALU flags
-assign PSW_ALU_FL_RESET = exma_ctl.ma.FlagMask & ~exma_alu_fl;
-assign PSW_ALU_FL_SET   = exma_ctl.ma.FlagMask & exma_alu_fl;
+assign PSW_RESET.alu_fl = exma_ctl.ma.FlagMask & ~exma_alu_fl;
+assign PSW_SET.alu_fl   = exma_ctl.ma.FlagMask & exma_alu_fl;
+
+// Placeholder for remaining PSW fields
+assign PSW_RESET.rfu20 = '0;
+assign PSW_RESET.rfu10 = '0;
+assign PSW_RESET.float_fl = '0;
+assign PSW_SET.rfu20 = '0;
+assign PSW_SET.rfu10 = '0;
+assign PSW_SET.float_fl = '0;
 
 // System register write
-assign SR_WA = exma_ctl.ma.SRSel;
-assign SR_WD = exma_rf_rd2;
+assign SR_WA = exma_ctl.ma.SRSelWrite;
+assign SR_WD = exma_alu_out;
 assign SR_WE = exma_ctl.ma.SRWrite;
 
 //////////////////////////////////////////////////////////////////////

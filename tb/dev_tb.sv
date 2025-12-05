@@ -38,7 +38,9 @@ wand            dut_mem_szrqn;
 wire [4:0]      sr_ra, sr_wa;
 wire [31:0]     sr_rd, sr_wd;
 wire            sr_we;
-wire [3:0]      psw_alu_fl_reset, psw_alu_fl_set, psw_alu_fl;
+psw_t           psw, psw_reset, psw_set;
+wire [15:0]     ecr_cc;
+wire            ecr_set_eicc, ecr_set_fecc;
 
 logic [31:0]    imem_a, imem_do;
 int             imem_ws, imem_dw;
@@ -88,9 +90,12 @@ v810_exec dut
    .SR_WA(sr_wa),
    .SR_WD(sr_wd),
    .SR_WE(sr_we),
-   .PSW_ALU_FL_RESET(psw_alu_fl_reset),
-   .PSW_ALU_FL_SET(psw_alu_fl_set),
-   .PSW_ALU_FL(psw_alu_fl)
+   .PSW(psw),
+   .PSW_RESET(psw_reset),
+   .PSW_SET(psw_set),
+   .ECR_CC(ecr_cc),
+   .ECR_SET_EICC(ecr_set_eicc),
+   .ECR_SET_FECC(ecr_set_fecc)
    );
 
 v810_sysreg dut_sr
@@ -106,9 +111,12 @@ v810_sysreg dut_sr
    .WD(sr_wd),
    .WE(sr_we),
 
-   .PSW_ALU_FL_RESET(psw_alu_fl_reset),
-   .PSW_ALU_FL_SET(psw_alu_fl_set),
-   .PSW_ALU_FL(psw_alu_fl)
+   .PSW(psw),
+   .PSW_RESET(psw_reset),
+   .PSW_SET(psw_set),
+   .ECR_CC(ecr_cc),
+   .ECR_SET_EICC(ecr_set_eicc),
+   .ECR_SET_FECC(ecr_set_fecc)
    );
 
 v810_mem dut_mem
@@ -519,7 +527,32 @@ task test_inout2;
     assert(dut.rf.rmem[9] == dmem.mem[4]);
 endtask
 
+task test_trap0;
+    imem.load_hex16("dev_imem_trap0.hex");
+    start_test;
+    end_test;
+
+    assert(dut_sr.psw == 32'h00005001);
+    assert(dut_sr.eipc == 32'h80000008);
+    assert(dut_sr.eipsw == 32'h00000001);
+    assert(dut_sr.ecr.fecc == '0);
+    assert(dut_sr.ecr.eicc == 16'hffb8);
+endtask
+
+task test_trap1;
+    imem.load_hex16("dev_imem_trap1.hex");
+    start_test;
+    end_test;
+
+    assert(dut_sr.psw == 32'h0000d001);
+    assert(dut_sr.fepc == 32'h80000008);
+    assert(dut_sr.fepsw == 32'h00004001);
+    assert(dut_sr.ecr.fecc == 16'hffa8);
+    assert(dut_sr.ecr.eicc == 16'hfff0);
+endtask
+
 task test_all;
+/* -----\/----- EXCLUDED -----\/-----
     test_mov_rr;
     test_alu0;
     test_ldst0;
@@ -537,6 +570,9 @@ task test_all;
     test_inout0;
     test_inout1;
     test_inout2;
+ -----/\----- EXCLUDED -----/\----- */
+    test_trap0;
+    test_trap1;
 endtask
 
 task test_all_ram_modes;

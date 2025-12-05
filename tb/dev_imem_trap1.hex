@@ -1,0 +1,18 @@
+@0
+
+// Duplexed trap exception
+
+// Set PSW.NP=0, PSW.EP=1, PSW.Zero=1
+A100 4001 // MOVEA #0x4001, r0, r8  // r8 = 0x00004001
+7105 // LDSR r8, PSW
+
+6008 // TRAP 8
+
+8A00 // BR .+0      // It's a trap!
+
+@7E7
+8A00 // BR .+0      // It's a trap!
+
+// FFFF_FFD0: Vector address for duplexed exception
+@7E8
+6800 // HALT

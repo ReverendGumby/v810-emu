@@ -25,6 +25,11 @@ typedef struct packed {
     aluflags_t  alu_fl;
 } psw_t;
 
+typedef struct packed {
+    logic [15:0] fecc;
+    logic [15:0] eicc;
+} ecr_t;
+
 typedef enum bit [4:0] {
     SRSEL_EIPC = 5'd0,
     SRSEL_EIPSW = 5'd1,

@@ -1,0 +1,18 @@
+@0
+
+// Normal trap exception
+
+// Set PSW.NP=0, PSW.EP=0, PSW.Zero=1
+A100 0001 // MOVEA #0x0001, r0, r8  // r8 = 0x00000001
+7105 // LDSR r8, PSW    // Set PSW[0]
+
+6018 // TRAP 0x18
+
+8A00 // BR .+0      // It's a trap!
+
+@7D7
+8A00 // BR .+0      // It's a trap!
+
+// FFFF_FFB0: Vector address for trap instruction (parameter is 0x1n)
+@7D8
+6800 // HALT
