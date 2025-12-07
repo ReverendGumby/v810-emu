@@ -296,7 +296,7 @@ initial #0 begin
     $finish();
 end
 
-initial #1200 begin
+initial #1400 begin
     $error("Emergency exit!");
     $fatal(1);
 end
@@ -551,8 +551,23 @@ task test_trap1;
     assert(dut_sr.ecr.eicc == 16'hfff0);
 endtask
 
+task test_reti0;
+    imem.load_hex16("dev_imem_reti0.hex");
+    start_test;
+    end_test;
+
+    assert(dut_sr.psw == 32'h00000001);
+endtask
+
+task test_reti1;
+    imem.load_hex16("dev_imem_reti1.hex");
+    start_test;
+    end_test;
+
+    assert(dut_sr.psw == 32'h00000001);
+endtask
+
 task test_all;
-/* -----\/----- EXCLUDED -----\/-----
     test_mov_rr;
     test_alu0;
     test_ldst0;
@@ -570,9 +585,10 @@ task test_all;
     test_inout0;
     test_inout1;
     test_inout2;
- -----/\----- EXCLUDED -----/\----- */
     test_trap0;
     test_trap1;
+    test_reti0;
+    test_reti1;
 endtask
 
 task test_all_ram_modes;

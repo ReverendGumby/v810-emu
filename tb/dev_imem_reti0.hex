@@ -1,0 +1,27 @@
+@0
+
+// Return from normal exception
+
+// Set EIPC
+A040 0040 // MOVEA #0x0040, r0, r2
+BC42 8000 // MOVHI #0x8000, r2, r2
+7040 // LDSR r2, EIPC
+
+// Set EIPSW.NP=0, EIPSW.EP=0, EIPSW.Zero=1
+A100 0001 // MOVEA #0x0001, r0, r8  // r8 = 0x00000001
+7101 // LDSR r8, EIPSW
+
+// Set PSW.NP=0, PSW.EP=1, PSW.Zero=0
+A100 4000 // MOVEA #0x4000, r0, r8  // r8 = 0x00004000
+7105 // LDSR r8, PSW
+
+6400 // RETI
+
+8A00 // BR .+0      // It's a trap!
+
+@1F
+8A00 // BR .+0      // It's a trap!
+
+// Destination for RETI
+@20
+6800 // HALT

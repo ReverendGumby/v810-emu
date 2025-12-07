@@ -6,7 +6,6 @@
 
 // TODO: These instructions:
 // - MUL(U), DIV(U)
-// - RETI, HALT
 // - Bit string manipulation (Bstr)
 // - Floating-point operation (Fpp)
 // - CAXI
@@ -560,6 +559,24 @@ always @* begin
             6'b011_000:             // TRAP
                 begin
                     id_trap = '1;
+                end
+            6'b011_001:             // RETI
+                begin
+                    if (id_ccnt == 'd0) begin
+                        id_ctl_ex.ALUSrc1 = ALUSRC1_SR_RD;
+                        id_ctl_ex.ALUOp = ALUOP_MOV;
+                        id_ctl_ex.SRSelRead = PSW.np ? SRSEL_FEPC : SRSEL_EIPC;
+                        id_ctl_ex.Branch = '1;
+                        id_ctl_ex.Bcond[2:0] = BCOND_T;
+                        id_ctl_ex.Extend = '1;
+                    end
+                    else if (id_ccnt == 'd1) begin
+                        id_ctl_ex.ALUSrc1 = ALUSRC1_SR_RD;
+                        id_ctl_ex.ALUOp = ALUOP_MOV;
+                        id_ctl_ex.SRSelRead = PSW.np ? SRSEL_FEPSW : SRSEL_EIPSW;
+                        id_ctl_ma.SRSelWrite = SRSEL_PSW;
+                        id_ctl_ma.SRWrite = '1;
+                    end
                 end
             6'b011_010:             // HALT
                 begin

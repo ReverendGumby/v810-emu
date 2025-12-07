@@ -1,0 +1,28 @@
+@0
+
+// Return from NMI
+
+// Set FEPC
+A040 0040 // MOVEA #0x0040, r0, r2
+BC42 8000 // MOVHI #0x8000, r2, r2
+7042 // LDSR r2, FEPC
+
+// Set FEPSW.NP=0, FEPSW.EP=0, FEPSW.Zero=1
+A100 0001 // MOVEA #0x0001, r0, r8  // r8 = 0x00000001
+7103 // LDSR r8, FEPSW
+
+// Set PSW.NP=1, PSW.EP=0, PSW.Zero=0
+A100 8000 // MOVEA #0x8000, r0, r8  // r8 = 0xFFFF8000
+BD08 0001 // MOVHI #0x0001, r8, r8  // r8 = 0x00008000
+7105 // LDSR r8, PSW
+
+6400 // RETI
+
+8A00 // BR .+0      // It's a trap!
+
+@1F
+8A00 // BR .+0      // It's a trap!
+
+// Destination for RETI
+@20
+6800 // HALT
