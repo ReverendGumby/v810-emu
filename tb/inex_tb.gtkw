@@ -1,0 +1,347 @@
+[*]
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Sun Dec 14 01:57:59 2025
+[*]
+[dumpfile] "/Users/dhunter/src/mister/Test_V810_MiSTer/rtl/v810/tb/inex_tb.vcd"
+[dumpfile_mtime] "Sun Dec 14 01:55:54 2025"
+[dumpfile_size] 2074545
+[savefile] "/Users/dhunter/src/mister/Test_V810_MiSTer/rtl/v810/tb/inex_tb.gtkw"
+[timestart] 0
+[size] 1333 600
+[pos] -1 -1
+*-15.278384 153280 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+[markername] AA
+[markername] BB
+[markername] CC
+[markername] DD
+[markername] EE
+[markername] FF
+[markername] GG
+[markername] HH
+[markername] II
+[markername] JJ
+[markername] KK
+[markername] LL
+[markername] MM
+[markername] NN
+[markername] OO
+[markername] PP
+[markername] QQ
+[markername] RR
+[markername] SS
+[markername] TT
+[markername] UU
+[markername] VV
+[markername] WW
+[markername] XX
+[markername] YY
+[markername] ZZ
+[treeopen] inex_tb.
+[treeopen] inex_tb.dut.
+[treeopen] inex_tb.dut.inex.
+[treeopen] inex_tb.dut.sr.
+[sst_width] 255
+[signals_width] 283
+[sst_expanded] 1
+[sst_vpaned_height] 159
+@c00200
+-mem
+@800200
+-wb
+@28
+inex_tb.dut.mem.wb_full
+inex_tb.dut.mem.wb_empty
+inex_tb.dut.mem.wb_rptr
+inex_tb.dut.mem.wb_wptr
+inex_tb.dut.mem.wb_write
+inex_tb.dut.mem.wb_read
+@1000200
+-wb
+@800200
+-bm
+@28
+inex_tb.dut.mem.bm_sel_wb
+inex_tb.dut.mem.bm_sel_eud
+inex_tb.dut.mem.bm_sel_eui
+inex_tb.dut.mem.bm_sel_wb_d
+inex_tb.dut.mem.bm_sel_eud_d
+inex_tb.dut.mem.bm_sel_eui_d
+inex_tb.dut.mem.bm_sel_none_d
+@22
+inex_tb.dut.mem.bm_ebi_a[31:0]
+inex_tb.dut.mem.bm_ebi_do[31:0]
+@28
+inex_tb.dut.mem.bm_ebi_bc[1:0]
+@22
+inex_tb.dut.mem.bm_ebi_be[3:0]
+@28
+inex_tb.dut.mem.bm_ebi_wr
+inex_tb.dut.mem.bm_ebi_mrq
+inex_tb.dut.mem.bm_ebi_st[1:0]
+inex_tb.dut.mem.bm_ebi_req
+inex_tb.dut.mem.bm_ebi_ack
+@1000200
+-bm
+@24
+inex_tb.dut.mem.ebst[2:0]
+@22
+inex_tb.dut.mem.A[31:0]
+inex_tb.dut.mem.D_I[31:0]
+inex_tb.dut.mem.D_O[31:0]
+@28
+inex_tb.dut.mem.BEn[3:0]
+inex_tb.dut.mem.ST[1:0]
+inex_tb.dut.mem.DAn
+inex_tb.dut.mem.MRQn
+inex_tb.dut.mem.RW
+inex_tb.dut.mem.BCYSTn
+inex_tb.dut.mem.READYn
+inex_tb.dut.mem.SZRQn
+@1401200
+-mem
+@28
+inex_tb.dut.eu.RESn
+inex_tb.dut.eu.CLK
+@22
+inex_tb.dut.eu.IA[31:0]
+inex_tb.dut.eu.ID[31:0]
+@28
+inex_tb.dut.eu.IREQ
+inex_tb.dut.eu.IACK
+@22
+inex_tb.dut.eu.DA[31:0]
+inex_tb.dut.eu.DD_I[31:0]
+inex_tb.dut.eu.DD_O[31:0]
+@28
+inex_tb.dut.eu.DBE[3:0]
+inex_tb.dut.eu.DWR
+inex_tb.dut.eu.DMRQ
+inex_tb.dut.eu.DST[1:0]
+inex_tb.dut.eu.DREQ
+inex_tb.dut.eu.DACK
+@800200
+-inex
+@28
+inex_tb.dut.inex.INT
+@22
+inex_tb.dut.inex.INTVn[3:0]
+@28
+inex_tb.dut.inex.NMIn
+inex_tb.dut.inex.EUF
+@22
+inex_tb.dut.inex.EUCCB[15:0]
+inex_tb.dut.inex.EUCCO[4:0]
+@28
+inex_tb.dut.inex.ADTRF
+inex_tb.dut.inex.IF
+inex_tb.dut.inex.NP
+@22
+inex_tb.dut.inex.IEL[3:0]
+inex_tb.dut.inex.CC[15:0]
+inex_tb.dut.inex.HA[31:0]
+@28
+inex_tb.dut.inex.ACK
+inex_tb.dut.inex.resp
+inex_tb.dut.inex.nmip
+inex_tb.dut.inex.intp
+inex_tb.dut.inex.resf
+inex_tb.dut.inex.nmif
+inex_tb.dut.inex.intf
+inex_tb.dut.inex.adtrf
+inex_tb.dut.inex.euf
+@1000200
+-inex
+@800200
+-sysreg
+@22
+inex_tb.dut.sr.eipc[31:0]
+inex_tb.dut.sr.eipsw[31:0]
+inex_tb.dut.sr.fepc[31:0]
+inex_tb.dut.sr.fepsw[31:0]
+inex_tb.dut.sr.ecr[31:0]
+@23
+inex_tb.dut.sr.psw[31:0]
+@22
+inex_tb.dut.sr.chcw[31:0]
+@28
+inex_tb.dut.eu.halted
+inex_tb.dut.sr.ECR_SET_EICC
+inex_tb.dut.sr.ECR_SET_FECC
+@22
+inex_tb.dut.sr.PSW_SET[31:0]
+@1000200
+-sysreg
+@800200
+-if
+@28
+inex_tb.dut.eu.if_stall
+inex_tb.dut.eu.if_flush
+inex_tb.dut.eu.if_fetch_en
+inex_tb.dut.eu.imi_en
+inex_tb.dut.eu.imi_a_new
+inex_tb.dut.eu.imi_incomplete
+inex_tb.dut.eu.if_pc_inc
+inex_tb.dut.eu.if_pc_inc4
+inex_tb.dut.eu.if_pc_set
+inex_tb.dut.eu.if_pdlo_ins32
+inex_tb.dut.eu.if_pdhi_ins32
+inex_tb.dut.eu.if_ir_swap
+inex_tb.dut.eu.if_imi_a2
+inex_tb.dut.eu.if_wrap
+inex_tb.dut.eu.if_wrapped
+inex_tb.dut.eu.if_ins32_fetch_hi
+@22
+inex_tb.dut.eu.pc[31:0]
+inex_tb.dut.eu.pcn[31:0]
+inex_tb.dut.eu.pd[31:0]
+inex_tb.dut.eu.ir[31:0]
+@28
+inex_tb.dut.eu.ir_valid
+inex_tb.dut.eu.if_exc
+inex_tb.dut.eu.if_exc_done
+inex_tb.dut.eu.resh
+@1000200
+-if
+@800200
+-id
+@28
+inex_tb.dut.eu.id_stall
+inex_tb.dut.eu.id_flush
+@22
+inex_tb.dut.eu.ifid_pc[31:0]
+inex_tb.dut.eu.ifid_ir[31:0]
+@28
+inex_tb.dut.eu.ifid_exc
+@c00200
+-rmem
+@22
+inex_tb.dut.eu.rf.rmem00[31:0]
+inex_tb.dut.eu.rf.rmem01[31:0]
+inex_tb.dut.eu.rf.rmem02[31:0]
+inex_tb.dut.eu.rf.rmem03[31:0]
+inex_tb.dut.eu.rf.rmem04[31:0]
+inex_tb.dut.eu.rf.rmem05[31:0]
+inex_tb.dut.eu.rf.rmem06[31:0]
+inex_tb.dut.eu.rf.rmem07[31:0]
+inex_tb.dut.eu.rf.rmem08[31:0]
+inex_tb.dut.eu.rf.rmem09[31:0]
+inex_tb.dut.eu.rf.rmem10[31:0]
+inex_tb.dut.eu.rf.rmem11[31:0]
+inex_tb.dut.eu.rf.rmem12[31:0]
+inex_tb.dut.eu.rf.rmem13[31:0]
+inex_tb.dut.eu.rf.rmem14[31:0]
+inex_tb.dut.eu.rf.rmem15[31:0]
+inex_tb.dut.eu.rf.rmem16[31:0]
+inex_tb.dut.eu.rf.rmem17[31:0]
+inex_tb.dut.eu.rf.rmem18[31:0]
+inex_tb.dut.eu.rf.rmem19[31:0]
+inex_tb.dut.eu.rf.rmem20[31:0]
+inex_tb.dut.eu.rf.rmem21[31:0]
+inex_tb.dut.eu.rf.rmem22[31:0]
+inex_tb.dut.eu.rf.rmem23[31:0]
+inex_tb.dut.eu.rf.rmem24[31:0]
+inex_tb.dut.eu.rf.rmem25[31:0]
+inex_tb.dut.eu.rf.rmem26[31:0]
+inex_tb.dut.eu.rf.rmem27[31:0]
+inex_tb.dut.eu.rf.rmem28[31:0]
+inex_tb.dut.eu.rf.rmem29[31:0]
+inex_tb.dut.eu.rf.rmem30[31:0]
+inex_tb.dut.eu.rf.rmem31[31:0]
+@1401200
+-rmem
+@22
+inex_tb.dut.eu.id_rf_ra1[4:0]
+inex_tb.dut.eu.id_rf_ra2[4:0]
+inex_tb.dut.eu.id_rf_rd1[31:0]
+inex_tb.dut.eu.id_rf_rd2[31:0]
+inex_tb.dut.eu.wb_rf_wa[4:0]
+inex_tb.dut.eu.wb_rf_wd[31:0]
+@28
+inex_tb.dut.eu.wb_rf_we
+@1000200
+-id
+@24
+inex_tb.dut.eu.id_ccnt[5:0]
+@800200
+-ex
+@28
+inex_tb.dut.eu.ex_stall
+inex_tb.dut.eu.ex_flush
+@22
+inex_tb.dut.eu.idex_pc[31:0]
+inex_tb.dut.eu.idex_ir[31:0]
+inex_tb.dut.eu.idex_ctl[43:0]
+@28
+inex_tb.dut.eu.idex_exc
+@22
+inex_tb.dut.eu.idex_rf_rd1[31:0]
+inex_tb.dut.eu.idex_rf_rd2[31:0]
+inex_tb.dut.eu.idex_rf_wa[4:0]
+inex_tb.dut.eu.alu_in1[31:0]
+inex_tb.dut.eu.alu_in2[31:0]
+inex_tb.dut.eu.alu_op[3:0]
+inex_tb.dut.eu.alu_out[31:0]
+@28
+inex_tb.dut.eu.alu_fl[3:0]
+@22
+inex_tb.dut.eu.bcond_match
+@28
+inex_tb.dut.eu.branch_taken
+@22
+inex_tb.dut.eu.ex_sr_rd[31:0]
+@28
+inex_tb.dut.eu.ex_euf
+@22
+inex_tb.dut.eu.ex_euccb[15:0]
+inex_tb.dut.eu.ex_eucco[4:0]
+@1000200
+-ex
+@800200
+-ma
+@28
+inex_tb.dut.eu.ma_flush
+@22
+inex_tb.dut.eu.exma_rf_wa[4:0]
+inex_tb.dut.eu.exma_rf_rd2[31:0]
+inex_tb.dut.eu.exma_alu_out[31:0]
+@28
+inex_tb.dut.eu.exma_alu_fl[3:0]
+@22
+inex_tb.dut.eu.exma_sr_rd[31:0]
+inex_tb.dut.eu.exma_ctl[20:0]
+inex_tb.dut.eu.ma_di[31:0]
+inex_tb.dut.eu.ma_do[31:0]
+@28
+inex_tb.dut.eu.ma_incomplete
+@1000200
+-ma
+@800200
+-wb
+@22
+inex_tb.dut.eu.mawb_alu_out[31:0]
+inex_tb.dut.eu.mawb_mem_rd[31:0]
+@28
+inex_tb.dut.eu.mawb_mem_bsel[1:0]
+@22
+inex_tb.dut.eu.mawb_rf_wa[4:0]
+inex_tb.dut.eu.mawb_ctl[4:0]
+inex_tb.dut.eu.wb_ldmem[31:0]
+@1000200
+-wb
+@800200
+-hazard
+@28
+inex_tb.dut.eu.haz_data_ex
+inex_tb.dut.eu.haz_data_ma
+inex_tb.dut.eu.haz_data
+inex_tb.dut.eu.haz_flag_ex
+inex_tb.dut.eu.haz_sys1_ex
+inex_tb.dut.eu.haz_sys1_ma
+inex_tb.dut.eu.haz_sys2_ex
+inex_tb.dut.eu.haz_sys2_ma
+inex_tb.dut.eu.haz_sys
+inex_tb.dut.eu.haz_flag
+@1000200
+-hazard
+[pattern_trace] 1
+[pattern_trace] 0

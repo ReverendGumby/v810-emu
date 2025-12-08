@@ -1,4 +1,10 @@
-`timescale 1us / 1ns
+// V810 CPU top-level module
+//
+// Copyright (c) 2025 David Hunter
+//
+// This program is GPL licensed. See COPYING for the full license.
+
+import v810_pkg::*;
 
 module v810
   (
@@ -17,8 +23,23 @@ module v810
    output        RW, // Read / not Write
    output        BCYSTn, // Bus CYcle STart
    input         READYn,
-   input         SZRQn // Bus SiZing ReQuest
+   input         SZRQn, // Bus SiZing ReQuest
+
+   input         INT, // Interrupt
+   input [3:0]   INTVn, // Interrupt Level
+   input         NMIn // Non-maskable Interrupt
    );
+
+wire            inex_euf;
+wire [15:0]     inex_euccb;
+wire [4:0]      inex_eucco;
+wire            inex_adtrf;
+wire            inex_if;
+wire [15:0]     inex_cc;
+wire            inex_np;
+wire [3:0]      inex_iel;
+wire [31:0]     inex_ha;
+wire            inex_ack;
 
 logic [31:0]    euia, euda;
 logic [31:0]    euid;
@@ -35,14 +56,47 @@ wire [4:0]      sr_ra, sr_wa;
 wire [31:0]     sr_rd, sr_wd;
 wire            sr_we;
 psw_t           psw, psw_reset, psw_set;
-wire [15:0]     ecr_cc;
 wire            ecr_set_eicc, ecr_set_fecc;
+
+v810_inex inex
+  (
+   .RESn(RESn),
+   .CLK(CLK),
+   .CE(CE),
+
+   .PSW(psw),
+
+   .INT(INT),
+   .INTVn(INTVn),
+   .NMIn(NMIn),
+
+   .EUF(inex_euf),
+   .EUCCB(inex_euccb),
+   .EUCCO(inex_eucco),
+   .ADTRF(inex_adtrf),
+   .IF(inex_if),
+   .CC(inex_cc),
+   .NP(inex_np),
+   .IEL(inex_iel),
+   .HA(inex_ha),
+   .ACK(inex_ack)
+   );
 
 v810_exec eu
   (
    .RESn(RESn),
    .CLK(CLK),
    .CE(CE),
+
+   .INEX_EUF(inex_euf),
+   .INEX_EUCCB(inex_euccb),
+   .INEX_EUCCO(inex_eucco),
+   .INEX_ADTRF(inex_adtrf),
+   .INEX_IF(inex_if),
+   .INEX_NP(inex_np),
+   .INEX_IEL(inex_iel),
+   .INEX_HA(inex_ha),
+   .INEX_ACK(inex_ack),
 
    .IA(euia),
    .ID(euid),
@@ -68,7 +122,6 @@ v810_exec eu
    .PSW(psw),
    .PSW_RESET(psw_reset),
    .PSW_SET(psw_set),
-   .ECR_CC(ecr_cc),
    .ECR_SET_EICC(ecr_set_eicc),
    .ECR_SET_FECC(ecr_set_fecc)
    );
@@ -89,7 +142,7 @@ v810_sysreg sr
    .PSW(psw),
    .PSW_RESET(psw_reset),
    .PSW_SET(psw_set),
-   .ECR_CC(ecr_cc),
+   .ECR_CC(inex_cc),
    .ECR_SET_EICC(ecr_set_eicc),
    .ECR_SET_FECC(ecr_set_fecc)
    );

@@ -9,7 +9,6 @@
 // - Bit string manipulation (Bstr)
 // - Floating-point operation (Fpp)
 // - CAXI
-// TODO: Interrupts / exceptions
 
 import v810_pkg::*;
 
@@ -18,6 +17,18 @@ module v810_exec
    input         RESn,
    input         CLK,
    input         CE, // global clock enable
+
+   // Interrupt / exception interface
+   output        INEX_EUF, // execution exception flag
+   output [15:0] INEX_EUCCB, // execution exception code base
+   output [4:0]  INEX_EUCCO, // execution exception code offset
+   output        INEX_ADTRF, // address trap exception flag
+   input         INEX_IF, // Interrupt / Exception Flag
+   input         INEX_NP, // Non-maskable int. or duplexed exc.
+   input [3:0]   INEX_IEL, // Maskable int. enable level (for PSW.I)
+   input [15:0]  INEX_CC, // Exception Code
+   input [31:0]  INEX_HA, // Handler Address
+   output        INEX_ACK, // execution unit acknowledge
 
    // Instruction bus
    output [31:0] IA,
@@ -46,7 +57,6 @@ module v810_exec
    input         psw_t PSW,
    output        psw_t PSW_RESET,
    output        psw_t PSW_SET,
-   output [15:0] ECR_CC,
    output        ECR_SET_EICC,
    output        ECR_SET_FECC
    );
@@ -121,6 +131,7 @@ typedef struct packed {
     logic [3:0] Bcond;
     sr_sel_t    SRSelRead;
     logic       Halt; // TODO: there's gotta be a better way
+    logic       AckExcept;
 } ctl_ex_t;
 
 typedef struct packed {
@@ -150,6 +161,7 @@ logic           ifid_exc;
 // ID/EX
 logic [31:0]    idex_pc;
 logic [31:0]    idex_ir;
+logic           idex_exc;
 logic [31:0]    idex_rf_rd1, idex_rf_rd2;
 logic [4:0]     idex_rf_wa;
 struct packed {
@@ -183,19 +195,22 @@ struct packed {
 // IF - Instruction Fetch stage
 //////////////////////////////////////////////////////////////////////
 
+logic           resh;           // reset exception is being handled
 logic           if_ins32_fetch_hi;
 wand            if_fetch_en;
+logic           if_exc_done;
 
 assign if_fetch_en = ~halted;
 
 //////////////////////////////////////////////////////////////////////
 // Instruction memory interface
 
+logic           imi_en;
 logic [31:0]    imi_a, imi_an;
 logic [31:0]    imi_d, imi_dbuf;
 logic [15:0]    idrh;   // last high halfword fetched
 logic           imi_a_new;
-logic           imi_incomplete;
+logic           imi_complete, imi_incomplete;
 
 assign IA = imi_a;
 assign IREQ = RESn & imi_a_new;
@@ -206,14 +221,21 @@ always @* begin
         imi_d = ID;
 end
 
+assign imi_en = ~resh;
+
 // Compare word address, to avoid fetching the same word.
 // TODO: Compare halfword address if SIZ16B=1
 wire imi_a_eq_an = imi_a[31:2] == imi_an[31:2];
+wire imi_a_new_p = ~RESn | ~(imi_a_eq_an | if_exc) | (imi_a_new & ~IACK);
 
 always @(posedge CLK) if (CE) begin
-    if (~imi_incomplete) begin
+    if (~RESn) begin
+        imi_a <= '0;
+        imi_a_new <= '0;
+    end
+    else if (imi_en & ~imi_incomplete) begin
         imi_a <= imi_an;
-        imi_a_new <= ~RESn | ~imi_a_eq_an | (imi_a_new & ~IACK);
+        imi_a_new <= imi_a_new_p;
     end
 
     if (~RESn)
@@ -222,12 +244,15 @@ always @(posedge CLK) if (CE) begin
         imi_dbuf <= imi_d;
 end
 
+assign if_fetch_en = imi_en;
+
 always @(posedge CLK) if (CE) begin
     if (if_fetch_en) begin
         idrh <= imi_d[31:16];
     end
 end
 
+assign imi_complete = IREQ & IACK;
 assign imi_incomplete = IREQ & ~IACK;
 
 // Disable fetching while memory access completes
@@ -242,6 +267,7 @@ assign ex_flush = imi_incomplete;
 // Program Counter
 
 logic           if_pc_inc, if_pc_inc4, if_pc_set;
+logic           if_pc_set_ins_fetch;
 logic [31:0]    if_pc_set_val;
 
 logic [31:0]    pc, pci, pci2, pci4, pcn;
@@ -264,7 +290,7 @@ end
 
 always @(posedge CLK) if (CE) begin
     if (~RESn) begin
-        pc <= 32'hFFFFFFF0;
+        pc <= 'X;
     end
     else if (if_fetch_en) begin
         pc <= pcn;
@@ -372,6 +398,7 @@ assign ex_flush = if_ins32_fetch_hi;
 // Instruction Register
 
 logic [31:0]    ir;
+logic           ir_valid, ir_valid_d;
 
 always @* begin
     ir = pd;
@@ -383,51 +410,33 @@ always @* begin
         ir = '0;
 end
 
+always @* begin
+    ir_valid = ir_valid_d;
+    if (~RESn | ~imi_en | if_pc_set | imi_incomplete | if_ins32_fetch_hi)
+        ir_valid = '0;
+    else if (~imi_a_new_p | imi_complete)
+        ir_valid = '1;
+end
+
+always @(posedge CLK) if (CE) begin
+    ir_valid_d <= ir_valid;
+end
+
 // Disable fetching if the next instruction is ready but cannot be output.
-wire ir_valid = if_pc_inc;
 assign if_fetch_en = ~(ir_valid & if_stall);
 
 //////////////////////////////////////////////////////////////////////
 // Interrupt / Exception Ingress
 
-wor             if_exc_start;
-logic           if_exc_start_d;
-logic           if_exc_done;
-logic [15:0]    if_exc_cc, if_exc_cc_d;
-logic [31:0]    if_exc_a;
-logic           if_exc_trap_called;
+logic           if_exc;
 
-assign if_exc_start = if_exc_trap_called;
-
-localparam [15:0] exc_trap_cc = 16'hffa0;
-always @* begin
-    if_exc_cc = '0;
-    if (if_exc_trap_called) begin
-        if_exc_cc = {exc_trap_cc[15:5], ifid_ir[4:0]};
-    end
-end
+assign if_exc = INEX_IF & ~if_flush;
 
 always @(posedge CLK) if (CE) begin
-    if (~RESn) begin
-        if_exc_cc_d <= '0;
-    end
-    else if (~if_stall & if_exc_start) begin
-        if_exc_cc_d <= if_exc_cc;
-    end
+    resh <= (resh | ~RESn) & ~if_exc_done;
 end
 
-assign ECR_CC = if_exc_cc_d;
-
-always @* begin
-    if_exc_a = {16'hffff, if_exc_cc_d};
-    if (PSW.np)                 // duplexed exception
-        if_exc_a[15:0] = 16'hffd0;
-    else if (if_exc_a[7:4] == 4'h7) // codes FF6x-FF7x use address 'FF60
-        if_exc_a[7:4] = 4'h6;
-    if_exc_a[3:0] = 4'h0;
-end
-
-assign if_stall = ifid_exc & ~if_exc_done;
+//assign if_stall = ifid_exc & ~if_exc_done;
 
 //////////////////////////////////////////////////////////////////////
 // IF/ID pipeline register
@@ -436,7 +445,7 @@ always @(posedge CLK) if (CE) begin
     if (~RESn | ~if_stall) begin
         ifid_pc <= pc;
         ifid_ir <= ir;
-        ifid_exc <= if_exc_start;
+        ifid_exc <= if_exc;
     end
 end
 
@@ -444,6 +453,8 @@ end
 //////////////////////////////////////////////////////////////////////
 // ID - Instruction Decode / Register Fetch stage
 //////////////////////////////////////////////////////////////////////
+
+logic           id_done;
 
 //////////////////////////////////////////////////////////////////////
 // Instruction decoder
@@ -475,6 +486,7 @@ always @* begin
             'd0: begin
                 id_ctl_ex.ALUSrc1 = ALUSRC1_PC;
                 id_ctl_ex.ALUOp = ALUOP_MOV;
+                id_ctl_ex.AckExcept = '1;
                 id_ctl_ma.SRSelWrite = PSW.ep ? SRSEL_FEPC : SRSEL_EIPC;
                 id_ctl_ma.SRWrite = '1;
                 id_ctl_ex.Extend = '1;
@@ -718,12 +730,14 @@ always @* begin
         id_ctl_wb.RegWrite = '0; // no point in trying
 end
 
+assign id_done = ~id_flush & ~id_ctl_ex.Extend;
+
 // Handle ins. with multiple EX cycles
 always @(posedge CLK) if (CE) begin
     if (~RESn)
         id_ccnt <= '0;
     else if (~(id_stall | id_flush)) begin
-        if (~id_ctl_ex.Extend)
+        if (id_done)
             id_ccnt <= '0;
         else
             id_ccnt <= id_ccnt + 1'd1;
@@ -733,32 +747,56 @@ end
 // Decoded an invalid (or unimplemented) instruction
 wire id_invalid_ins = id_invalid & ~id_stall;
 
-assign if_stall = id_ctl_ex.Extend;
+assign if_stall = id_ctl_ex.Extend & ~(id_stall | id_flush);
 
 // Avoid an IF fetch happening post-HALT.
 assign if_stall = halted;
 assign if_flush = id_ctl_ex.Halt | halted;
 assign id_flush = halted;
 
-// Exception signals
-wire id_exc_set_ecr_go = id_exc_set_psw & ~(id_stall | id_flush);
-assign ECR_SET_EICC = id_exc_set_ecr_go & (~PSW.ep & ~PSW.np);
-assign ECR_SET_FECC = id_exc_set_ecr_go & (PSW.ep & ~PSW.np);
+//////////////////////////////////////////////////////////////////////
+// Execution Unit exception generation
+
+wor             ex_euf;
+logic [15:0]    ex_euccb;
+logic [4:0]     ex_eucco;
+
+always @* begin
+    ex_euccb = '0;
+    ex_eucco = '0;
+
+    if (id_trap) begin
+        ex_euccb = 16'hFFA0;
+        ex_eucco = ifid_ir[4:0];
+    end
+end
+
+assign INEX_EUF = ex_euf;
+assign INEX_EUCCB = ex_euccb;
+assign INEX_EUCCO = ex_eucco;
+assign INEX_ADTRF = '0; // TODO
+
+//////////////////////////////////////////////////////////////////////
+// Exception handling
+
+wire id_exc_set_ecr_go = id_exc_set_ecr & ~(id_stall | id_flush);
+assign ECR_SET_EICC = id_exc_set_ecr_go & (resh | ~INEX_NP) & (~PSW.ep & ~PSW.np);
+assign ECR_SET_FECC = id_exc_set_ecr_go & ((~resh & INEX_NP) | (PSW.ep & ~PSW.np));
 
 wire id_exc_set_psw_go = id_exc_set_psw & ~(id_stall | id_flush);
 assign PSW_RESET.id = '0;
 assign PSW_RESET.ae = id_exc_set_psw_go;
 assign PSW_RESET.ep = '0;
 assign PSW_RESET.np = '0;
-assign PSW_RESET.i = '0;
-assign PSW_SET.id = id_exc_set_psw_go;
+assign PSW_RESET.i = {4{PSW_SET.ep}};
+assign PSW_SET.id = id_exc_set_psw_go & ~resh; // Why is ID=0 on reset?
 assign PSW_SET.ae = '0;
-assign PSW_SET.ep = id_exc_set_psw_go;
-assign PSW_SET.np = id_exc_set_psw_go & PSW.ep;
-assign PSW_SET.i = '0;
+assign PSW_SET.ep = id_exc_set_psw_go & ~INEX_NP;
+assign PSW_SET.np = id_exc_set_psw_go & INEX_NP;
+assign PSW_SET.i = {4{PSW_SET.ep}} & INEX_IEL;
 
-assign if_exc_trap_called = id_trap;
-assign if_exc_done = ifid_exc & ~(id_ctl_ex.Extend | id_flush);
+assign ex_euf = id_trap;
+assign if_exc_done = ifid_exc & id_done;
 
 //////////////////////////////////////////////////////////////////////
 // Register file
@@ -793,6 +831,7 @@ always @(posedge CLK) if (CE) begin
     if (~RESn | ~id_stall) begin
         idex_pc <= ifid_pc;
         idex_ir <= ifid_ir;
+        idex_exc <= ifid_exc;
         idex_rf_wa <= id_rf_wa;
         idex_rf_rd1 <= id_rf_rd1;
         idex_rf_rd2 <= id_rf_rd2;
@@ -837,7 +876,7 @@ always @* begin
         ALUSRC1_PC:     alu_in1 = idex_pc;
         ALUSRC1_BMATCH: alu_in1 = {31'b0, bcond_match};
         ALUSRC1_SR_RD:  alu_in1 = ex_sr_rd;
-        ALUSRC1_EXC_A:  alu_in1 = if_exc_a;
+        ALUSRC1_EXC_A:  alu_in1 = INEX_HA;
         default: ;
     endcase
 end
@@ -951,6 +990,9 @@ end
 
 // Avoid an IF fetch happening post-HALT.
 assign if_stall = idex_ctl.ex.Halt;
+
+// Start of exception execution
+assign INEX_ACK = idex_ctl.ex.AckExcept;
 
 
 //////////////////////////////////////////////////////////////////////
@@ -1136,7 +1178,8 @@ wire haz_sys2 = haz_sys2_ex | haz_sys2_ma;
 
 wire haz_sys = haz_sys1 | haz_sys2;
 
-assign if_stall = (haz_data | haz_flag | haz_sys) & ~branch_taken;
+wire branch_incomplete = if_pc_set/* | if_pc_set_ins_fetch*/;
+assign if_stall = (haz_data | haz_flag | haz_sys) & ~branch_incomplete;
 assign id_flush = (haz_data | haz_flag | haz_sys);
 
 endmodule

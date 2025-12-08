@@ -1,0 +1,87 @@
+@0
+
+// Set PSW.I = 8 and clear PSW.NP
+0100 // MOV r0, r8                  // r8 = 0x00000000
+BD08 0008 // MOVHI #0x0008, r8, r8  // r8 = 0x00080000
+7105 // LDSR r8, PSW
+// If an INT8 or higher interrupt was pending, it will happen now.
+// But because we're signaling an INT7, no interrupt will happen.
+
+9A00 // NOP
+9A00 // NOP
+9A00 // NOP
+9A00 // NOP
+6800 // HALT
+
+@700 // FFFF_FE00: INT 0
+6800 // HALT
+
+@708 // FFFF_FE10: INT 1
+6800 // HALT
+
+@710 // FFFF_FE20: INT 2
+6800 // HALT
+
+@718 // FFFF_FE30: INT 3
+6800 // HALT
+
+@720 // FFFF_FE40: INT 4
+6800 // HALT
+
+@728 // FFFF_FE50: INT 5
+6800 // HALT
+
+@730 // FFFF_FE60: INT 6
+6800 // HALT
+
+@738 // FFFF_FE70: INT 7
+6800 // HALT
+
+@740 // FFFF_FE80: INT 8
+6800 // HALT
+
+@748 // FFFF_FE90: INT 9
+6800 // HALT
+
+@750 // FFFF_FEA0: INT 10
+6800 // HALT
+
+@758 // FFFF_FEB0: INT 11
+6800 // HALT
+
+@760 // FFFF_FEC0: INT 12
+6800 // HALT
+
+@768 // FFFF_FED0: INT 13
+6800 // HALT
+
+@770 // FFFF_FEE0: INT 14
+6800 // HALT
+
+@778 // FFFF_FEF0: INT 15
+6800 // HALT
+
+@7B0 // FFFF_FF60: Float-point exc.
+6800 // HALT
+
+@7C0 // FFFF_FF80: Zero division
+6800 // HALT
+
+@7C8 // FFFF_FF90: Invalid ins.
+6800 // HALT
+
+@7D0 // FFFF_FFA0: Trap ins. 0x0n
+6800 // HALT
+
+@7D8 // FFFF_FFB0: Trap ins. 0x1n
+6800 // HALT
+
+@7E0 // FFFF_FFC0: Address trap
+6800 // HALT
+
+@7E8 // FFFF_FFD0: NMI / Duplexed exception
+6800 // HALT
+
+@7F8 // FFFF_FFF0: Reset
+BFE0 8000 // MOVHI #0x8000, r0, r31
+181F      // JMP LP

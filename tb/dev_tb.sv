@@ -35,11 +35,21 @@ wire            dut_mem_bcystn;
 wor             dut_mem_readyn;
 wand            dut_mem_szrqn;
 
+wire            inex_euf;
+wire [15:0]     inex_euccb;
+wire [4:0]      inex_eucco;
+wire            inex_adtrf;
+wire            inex_if;
+wire            inex_np;
+wire [3:0]      inex_iel;
+wire [15:0]     inex_cc;
+wire [31:0]     inex_ha;
+wire            inex_ack;
+
 wire [4:0]      sr_ra, sr_wa;
 wire [31:0]     sr_rd, sr_wd;
 wire            sr_we;
 psw_t           psw, psw_reset, psw_set;
-wire [15:0]     ecr_cc;
 wire            ecr_set_eicc, ecr_set_fecc;
 
 logic [31:0]    imem_a, imem_do;
@@ -69,6 +79,16 @@ v810_exec dut
    .CLK(clk),
    .CE(ce),
 
+   .INEX_EUF(inex_euf),
+   .INEX_EUCCB(inex_euccb),
+   .INEX_EUCCO(inex_eucco),
+   .INEX_ADTRF(inex_adtrf),
+   .INEX_IF(inex_if),
+   .INEX_NP(inex_np),
+   .INEX_IEL(inex_iel),
+   .INEX_HA(inex_ha),
+   .INEX_ACK(inex_ack),
+
    .IA(dut_ia),
    .ID(dut_id),
    .IREQ(dut_ireq),
@@ -93,9 +113,32 @@ v810_exec dut
    .PSW(psw),
    .PSW_RESET(psw_reset),
    .PSW_SET(psw_set),
-   .ECR_CC(ecr_cc),
    .ECR_SET_EICC(ecr_set_eicc),
    .ECR_SET_FECC(ecr_set_fecc)
+   );
+
+v810_inex dut_inex
+  (
+   .RESn(~res),
+   .CLK(clk),
+   .CE(ce),
+
+   .PSW(psw),
+
+   .INT('0),
+   .INTVn('1),
+   .NMIn('1),
+
+   .EUF(inex_euf),
+   .EUCCB(inex_euccb),
+   .EUCCO(inex_eucco),
+   .ADTRF(inex_adtrf),
+   .IF(inex_if),
+   .NP(inex_np),
+   .IEL(inex_iel),
+   .CC(inex_cc),
+   .HA(inex_ha),
+   .ACK(inex_ack)
    );
 
 v810_sysreg dut_sr
@@ -114,7 +157,7 @@ v810_sysreg dut_sr
    .PSW(psw),
    .PSW_RESET(psw_reset),
    .PSW_SET(psw_set),
-   .ECR_CC(ecr_cc),
+   .ECR_CC(inex_cc),
    .ECR_SET_EICC(ecr_set_eicc),
    .ECR_SET_FECC(ecr_set_fecc)
    );
@@ -296,7 +339,7 @@ initial #0 begin
     $finish();
 end
 
-initial #1400 begin
+initial #1500 begin
     $error("Emergency exit!");
     $fatal(1);
 end
@@ -639,6 +682,13 @@ task test_all_modes;
     eu_bypass_mau = '0;
     test_all_wb_modes;
 endtask
+
+/* -----\/----- EXCLUDED -----\/-----
+always @(posedge clk) if (ce) begin
+    if (~(res | dut.id_stall | dut.id_flush | dut.ifid_exc))
+        $display("PC=%x IR=%x", dut.ifid_pc, dut.ifid_ir);
+end
+ -----/\----- EXCLUDED -----/\----- */
 
 endmodule
 

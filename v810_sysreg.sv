@@ -4,7 +4,7 @@
 //
 // This program is GPL licensed. See COPYING for the full license.
 
-// TODO: System registers EIPC, EIPSW, FEPC, FEPSW, ECR, PIR, TKCW, ADTRE
+// TODO: System registers PIR, TKCW, ADTRE
 
 module v810_sysreg
   (
@@ -60,7 +60,7 @@ assign RD = rd;
 
 always @(posedge CLK) if (CE) begin
     if (~RESn)
-        psw <= 32'h00008000;
+        psw <= '0;
     else begin
         if (WE & (WA == SRSEL_PSW)) begin
             psw <= WD;
@@ -74,8 +74,7 @@ end
 
 always @(posedge CLK) if (CE) begin
     if (~RESn) begin
-        // TODO: Reset to '0 after reset triggers exception
-        ecr <= 32'h0000fff0;
+        ecr <= '0;
     end
     else begin
         if (ECR_SET_EICC)

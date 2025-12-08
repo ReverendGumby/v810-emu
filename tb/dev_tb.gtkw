@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Fri Dec  5 06:56:40 2025
+[*] Sat Dec 13 23:28:34 2025
 [*]
 [dumpfile] "/Users/dhunter/src/mister/Test_V810_MiSTer/rtl/v810/tb/dev_tb.vcd"
-[dumpfile_mtime] "Fri Dec  5 06:55:28 2025"
-[dumpfile_size] 631617
+[dumpfile_mtime] "Sat Dec 13 23:25:35 2025"
+[dumpfile_size] 25913297
 [savefile] "/Users/dhunter/src/mister/Test_V810_MiSTer/rtl/v810/tb/dev_tb.gtkw"
-[timestart] 343
+[timestart] 44335
 [size] 1333 600
 [pos] -1 -1
-*-8.467412 1120 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+*-8.929258 45280 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 [markername] AA
 [markername] BB
 [markername] CC
@@ -41,8 +41,9 @@
 [signals_width] 283
 [sst_expanded] 1
 [sst_vpaned_height] 159
-@800200
+@c00200
 -dut_mem
+@800200
 -wb
 @28
 dev_tb.dut_mem.wb_full
@@ -93,11 +94,10 @@ dev_tb.dut_mem.RW
 dev_tb.dut_mem.BCYSTn
 dev_tb.dut_mem.READYn
 dev_tb.dut_mem.SZRQn
-@1000200
+@1401200
 -dut_mem
 @28
 dev_tb.dut.RESn
-@29
 dev_tb.dut.CLK
 @22
 dev_tb.dut.IA[31:0]
@@ -116,7 +116,37 @@ dev_tb.dut.DMRQ
 dev_tb.dut.DST[1:0]
 dev_tb.dut.DREQ
 dev_tb.dut.DACK
-@800200
+@c00200
+-inex
+@28
+dev_tb.dut_inex.INT
+@22
+dev_tb.dut_inex.INTVn[3:0]
+@28
+dev_tb.dut_inex.NMIn
+dev_tb.dut_inex.EUF
+@22
+dev_tb.dut_inex.EUCCB[15:0]
+dev_tb.dut_inex.EUCCO[4:0]
+@28
+dev_tb.dut_inex.ADTRF
+dev_tb.dut_inex.IF
+dev_tb.dut_inex.NP
+@22
+dev_tb.dut_inex.CC[15:0]
+dev_tb.dut_inex.HA[31:0]
+@28
+dev_tb.dut_inex.ACK
+dev_tb.dut_inex.resf
+dev_tb.dut_inex.nmif
+dev_tb.dut_inex.intf
+dev_tb.dut_inex.adtrf
+dev_tb.dut_inex.euf
+@22
+dev_tb.dut_inex.cc[15:0]
+@1401200
+-inex
+@c00200
 -sysreg
 @22
 dev_tb.dut_sr.eipc[31:0]
@@ -128,7 +158,7 @@ dev_tb.dut_sr.psw[31:0]
 dev_tb.dut_sr.chcw[31:0]
 @28
 dev_tb.dut.halted
-@1000200
+@1401200
 -sysreg
 @800200
 -if
@@ -136,6 +166,7 @@ dev_tb.dut.halted
 dev_tb.dut.if_stall
 dev_tb.dut.if_flush
 dev_tb.dut.if_fetch_en
+dev_tb.dut.imi_en
 dev_tb.dut.imi_a_new
 dev_tb.dut.imi_incomplete
 dev_tb.dut.if_pc_inc
@@ -148,18 +179,17 @@ dev_tb.dut.if_imi_a2
 dev_tb.dut.if_wrap
 dev_tb.dut.if_wrapped
 dev_tb.dut.if_ins32_fetch_hi
-@22
+@23
 dev_tb.dut.pc[31:0]
+@22
 dev_tb.dut.pcn[31:0]
 dev_tb.dut.pd[31:0]
 dev_tb.dut.ir[31:0]
 @28
-dev_tb.dut.if_exc_start
+dev_tb.dut.ir_valid
+dev_tb.dut.if_exc
 dev_tb.dut.if_exc_done
-@22
-dev_tb.dut.if_exc_cc[15:0]
-dev_tb.dut.if_exc_cc_d[15:0]
-dev_tb.dut.if_exc_a[31:0]
+dev_tb.dut.resh
 @1000200
 -if
 @800200
@@ -246,6 +276,11 @@ dev_tb.dut.bcond_match
 dev_tb.dut.branch_taken
 @22
 dev_tb.dut.ex_sr_rd[31:0]
+@28
+dev_tb.dut.ex_euf
+@22
+dev_tb.dut.ex_euccb[15:0]
+dev_tb.dut.ex_eucco[4:0]
 @1000200
 -ex
 @800200
