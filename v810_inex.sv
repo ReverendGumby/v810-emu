@@ -103,7 +103,7 @@ always @(posedge CLK) if (CE) begin
         adtrf <= (adtrf | ADTRF) & ~adtrc;
         euf <= (euf | EUF) & ~euc;
         if (EUF)
-            eucc <= EUCCB + EUCCO;
+            eucc <= EUCCB + 16'(EUCCO);
     end
 end
 
@@ -115,7 +115,7 @@ always @* begin
     {resc, nmic, intc, adtrc, euc} = '0;
     cc = '0;
 
-    casex ({resf, nmif, intf, adtrf, euf})
+    casez ({resf, nmif, intf, adtrf, euf})
         5'b1????: begin         // resf
             cc = 16'hFFF0;
             resc = resf & ACK;

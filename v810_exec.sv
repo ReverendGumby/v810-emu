@@ -26,7 +26,6 @@ module v810_exec
    input         INEX_IF, // Interrupt / Exception Flag
    input         INEX_NP, // Non-maskable int. or duplexed exc.
    input [3:0]   INEX_IEL, // Maskable int. enable level (for PSW.I)
-   input [15:0]  INEX_CC, // Exception Code
    input [31:0]  INEX_HA, // Handler Address
    output        INEX_ACK, // execution unit acknowledge
 
@@ -414,7 +413,7 @@ always @* begin
     ir_valid = ir_valid_d;
     if (~RESn | ~imi_en | if_pc_set | imi_incomplete | if_ins32_fetch_hi)
         ir_valid = '0;
-    else if (~imi_a_new_p | imi_complete)
+    else if (imi_complete)
         ir_valid = '1;
 end
 
