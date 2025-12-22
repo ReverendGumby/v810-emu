@@ -1,0 +1,49 @@
+// Test: Read from memory, and then branch to a word-wrapped 32-bit instruction.
+//
+// At the time of writing, this only worked when the T1 state was
+// bypassed (i.e., all memory access takes 1 cycle).
+//
+// Without T1, the pipeline timing looked like this:
+//
+// Memory bus              T2
+// Clock cycle    0  1  2  3  4  5  6  7
+//  ld.w          IF ID EX MA WB
+//  jal              IF ID EX EX
+//  ...                 IF    ID
+//  movea                     IF IF ID EX
+//  jmp                             IF ID
+//
+// With T1, the pipeline timing looked like this:
+//
+// Memory bus              T1 T2
+// Clock cycle    0  1  2  3  4  5
+//  ld.w          IF ID EX MA MA WB
+//  jal              IF ID    EX
+//  ...                 IF
+//  movea                     IF **
+//  jmp
+//
+// The pipeline deadlocked at cycle 5, because:
+// 1. EX, still on the 1st cycle of JAL, is signalling IF to set PC
+// 2. IF wants to fetch the second halfword of MOVEA, and so signals ID to stall
+// 3. ID is unable to send the 2nd cycle of JAL to EX
+//
+// The fix was to mask if_pc_set with ex_stall.
+
+@0
+
+4026 // MOV 6, r1
+9A00 // NOP
+CC60 0008 // LD.W 8[r0], r3
+
+AC00 001A // JAL 0x22
+
+6800 // HALT
+
+@10
+8A00 // BR .+0      // It's a trap!
+
+// The branch target
+@11
+A021 0003 // MOVEA 3, r1, r1        // r1 = 9
+181F // JMP LP

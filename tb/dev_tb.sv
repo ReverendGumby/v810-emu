@@ -313,11 +313,15 @@ always begin :ckgen
     #0.02 clk = ~clk;
 end
 
+event test_started;
+
 task start_test;
     imem_load_boot;
 
     for (int i = 1; i < 32; i++)
         dut.rf.rmem[i] = 'X;
+
+    -> test_started;
 
     repeat (5) @(posedge clk) ;
     res <= 0;
@@ -326,6 +330,8 @@ endtask
 
 task end_test;
     @(posedge halted) ;         // wait for HALT instruction
+
+    disable emergency_exit;
 
     repeat (10) @(posedge clk) ;
     //assert(dut_mem_dan & dut_mem_mrqn); // reset while bus is busy == bad
@@ -339,9 +345,13 @@ initial #0 begin
     $finish();
 end
 
-initial #1500 begin
-    $error("Emergency exit!");
-    $fatal(1);
+always @test_started begin
+    begin :emergency_exit
+        #10 ;
+        // If we reach this point, halted didn't assert in time.
+        $error("Emergency exit!");
+        $fatal(1);
+    end
 end
 
 always @dut_ia begin
@@ -490,6 +500,14 @@ task test_jmp_jr_jal;
     assert(dut.rf.rmem[2] == 32'h5);
 endtask
 
+task test_jal1;
+    imem.load_hex16("dev_imem_jal1.hex");
+    start_test;
+    end_test;
+
+    assert(dut.rf.rmem[1] == 32'h9);
+endtask
+
 task test_ldsr0;
     imem.load_hex16("dev_imem_ldsr0.hex");
     start_test;
@@ -618,6 +636,7 @@ task test_all;
     test_bcond0;
     test_setf;
     test_jmp_jr_jal;
+    test_jal1;
     test_alu1;
     test_alu2;
     test_ldst1;

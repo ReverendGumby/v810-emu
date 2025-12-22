@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Sat Dec 13 23:28:34 2025
+[*] Mon Dec 22 00:23:46 2025
 [*]
 [dumpfile] "/Users/dhunter/src/mister/Test_V810_MiSTer/rtl/v810/tb/dev_tb.vcd"
-[dumpfile_mtime] "Sat Dec 13 23:25:35 2025"
-[dumpfile_size] 25913297
+[dumpfile_mtime] "Sun Dec 21 23:50:50 2025"
+[dumpfile_size] 1475209
 [savefile] "/Users/dhunter/src/mister/Test_V810_MiSTer/rtl/v810/tb/dev_tb.gtkw"
-[timestart] 44335
+[timestart] 2849
 [size] 1333 600
 [pos] -1 -1
-*-8.929258 45280 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+*-6.566064 3120 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 [markername] AA
 [markername] BB
 [markername] CC
@@ -40,10 +40,9 @@
 [sst_width] 255
 [signals_width] 283
 [sst_expanded] 1
-[sst_vpaned_height] 159
-@c00200
--dut_mem
+[sst_vpaned_height] 145
 @800200
+-dut_mem
 -wb
 @28
 dev_tb.dut_mem.wb_full
@@ -94,7 +93,7 @@ dev_tb.dut_mem.RW
 dev_tb.dut_mem.BCYSTn
 dev_tb.dut_mem.READYn
 dev_tb.dut_mem.SZRQn
-@1401200
+@1000200
 -dut_mem
 @28
 dev_tb.dut.RESn
@@ -179,9 +178,8 @@ dev_tb.dut.if_imi_a2
 dev_tb.dut.if_wrap
 dev_tb.dut.if_wrapped
 dev_tb.dut.if_ins32_fetch_hi
-@23
-dev_tb.dut.pc[31:0]
 @22
+dev_tb.dut.pc[31:0]
 dev_tb.dut.pcn[31:0]
 dev_tb.dut.pd[31:0]
 dev_tb.dut.ir[31:0]
@@ -263,7 +261,9 @@ dev_tb.dut.idex_ir[31:0]
 dev_tb.dut.idex_rf_rd1[31:0]
 dev_tb.dut.idex_rf_rd2[31:0]
 dev_tb.dut.idex_rf_wa[4:0]
-dev_tb.dut.idex_ctl[42:0]
+@23
+dev_tb.dut.idex_ctl[43:0]
+@22
 dev_tb.dut.alu_in1[31:0]
 dev_tb.dut.alu_in2[31:0]
 dev_tb.dut.alu_op[3:0]

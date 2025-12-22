@@ -964,7 +964,7 @@ end
 wire branch_taken = idex_ctl.ex.Branch & bcond_match;
 // For JAL: EX-1 takes branch, EX-2 computes r31. So, don't flush ID on branch.
 wire branch_no_id_flush = idex_ctl.ex.Extend;
-assign if_pc_set = branch_taken;
+assign if_pc_set = branch_taken & ~ex_stall;
 assign if_pc_set_val = alu_out;
 assign if_flush = branch_taken;
 assign id_flush = branch_taken & ~branch_no_id_flush;
