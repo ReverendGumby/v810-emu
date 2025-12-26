@@ -119,7 +119,11 @@ always begin :ckgen
     #0.02 clk = ~clk;
 end
 
+event test_started;
+
 task start_test;
+    -> test_started;
+
     repeat (5) @(posedge clk) ;
     res <= 0;
     cpu_nmi <= 0;
@@ -131,6 +135,8 @@ endtask
 
 task end_test;
     @(posedge halted) ;         // wait for HALT instruction
+
+    disable emergency_exit;
 
     repeat (10) @(posedge clk) ;
     res <= 1;
@@ -199,17 +205,21 @@ task test_int7_dis;
 endtask
 
 initial #0 begin
-    //test_nmi;
-    //test_int8;
+    test_nmi;
+    test_int8;
     test_int7_dis;
 
     $display("Done!");
     $finish();
 end
 
-initial #200 begin
-    $error("Emergency exit!");
-    $fatal(1);
+always @test_started begin
+    begin :emergency_exit
+        #10 ;
+        // If we reach this point, halted didn't assert in time.
+        $error("Emergency exit!");
+        $fatal(1);
+    end
 end
 
 always @(posedge clk) if (ce) begin

@@ -413,7 +413,7 @@ always @* begin
     ir_valid = ir_valid_d;
     if (~RESn | ~imi_en | if_pc_set | imi_incomplete | if_ins32_fetch_hi)
         ir_valid = '0;
-    else if (imi_complete)
+    else if (~imi_a_new | imi_complete)
         ir_valid = '1;
 end
 

@@ -508,6 +508,15 @@ task test_jal1;
     assert(dut.rf.rmem[1] == 32'h9);
 endtask
 
+task test_jal2;
+    imem.load_hex16("dev_imem_jal2.hex");
+    start_test;
+    end_test;
+
+    assert(dut.rf.rmem[1] == 32'h80000020);
+    assert(dut.rf.rmem[31] == 32'h80000010);
+endtask
+
 task test_ldsr0;
     imem.load_hex16("dev_imem_ldsr0.hex");
     start_test;
@@ -637,6 +646,7 @@ task test_all;
     test_setf;
     test_jmp_jr_jal;
     test_jal1;
+    test_jal2;
     test_alu1;
     test_alu2;
     test_ldst1;

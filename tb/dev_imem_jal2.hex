@@ -1,0 +1,18 @@
+// Test: Branch to the immediate next instruction.
+//
+
+@0
+
+A020 0020 // MOVEA 0x20, r0, r1
+BC21 8000 // MOVHI 0x8000, r1, r1
+
+AC00 0004 // JAL .+4     // lp = 0xC
+47E4      // ADD 4, lp   // lp = 0x10
+1801      // JMP [r1]
+CD7D 001C // LD.W 0x1C[r29], r11
+
+8A00      // BR .+0      // It's a trap!
+
+// The branch target
+@10
+6800 // HALT
