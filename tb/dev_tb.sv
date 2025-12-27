@@ -603,7 +603,7 @@ task test_trap0;
     end_test;
 
     assert(dut_sr.psw == 32'h00005001);
-    assert(dut_sr.eipc == 32'h80000008);
+    assert(dut_sr.eipc == 32'h80000008); // next PC
     assert(dut_sr.eipsw == 32'h00000001);
     assert(dut_sr.ecr.fecc == '0);
     assert(dut_sr.ecr.eicc == 16'hffb8);
@@ -615,7 +615,7 @@ task test_trap1;
     end_test;
 
     assert(dut_sr.psw == 32'h0000d001);
-    assert(dut_sr.fepc == 32'h80000008);
+    assert(dut_sr.fepc == 32'h80000008); // next PC
     assert(dut_sr.fepsw == 32'h00004001);
     assert(dut_sr.ecr.fecc == 16'hffa8);
     assert(dut_sr.ecr.eicc == 16'hfff0);
@@ -635,6 +635,18 @@ task test_reti1;
     end_test;
 
     assert(dut_sr.psw == 32'h00000001);
+endtask
+
+task test_invalid_op;
+    imem.load_hex16("dev_imem_invalid_op.hex");
+    start_test;
+    end_test;
+
+    assert(dut_sr.psw == 32'h00005001);
+    assert(dut_sr.eipc == 32'h80000006); // current PC
+    assert(dut_sr.eipsw == 32'h00000001);
+    assert(dut_sr.ecr.fecc == '0);
+    assert(dut_sr.ecr.eicc == 16'hff90);
 endtask
 
 task test_all;
@@ -661,6 +673,7 @@ task test_all;
     test_trap1;
     test_reti0;
     test_reti1;
+    test_invalid_op;
 endtask
 
 task test_all_ram_modes;

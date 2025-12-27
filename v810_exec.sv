@@ -198,6 +198,7 @@ logic           resh;           // reset exception is being handled
 logic           if_ins32_fetch_hi;
 wand            if_fetch_en;
 logic           if_exc_done;
+logic           if_exc_cur_pc;  // do not inc. PC for this exception
 
 assign if_fetch_en = ~halted;
 
@@ -442,7 +443,8 @@ end
 
 always @(posedge CLK) if (CE) begin
     if (~RESn | ~if_stall) begin
-        ifid_pc <= pc;
+        if (~if_exc_cur_pc)
+            ifid_pc <= pc;
         ifid_ir <= ir;
         ifid_exc <= if_exc;
     end
@@ -635,7 +637,7 @@ always @* begin
                             id_ctl_ma.FlagMask = '1;
                     end
             6'b101_10?,             // ORI, ANDI
-                6'b101_110:             // XORI
+            6'b101_110:             // XORI
                     begin
                         id_rf_ra1 = ifid_ir[4:0];
                         id_rf_wa = ifid_ir[9:5];
@@ -679,7 +681,9 @@ always @* begin
                     id_ctl_ex.ALUOp = ALUOP_ADD;
                     id_ctl_wb.RegWrite = '1;
                 end
-            6'b110_0??:             // LD
+            6'b110_000,             // LD.B
+            6'b110_001,             // LD.H
+            6'b110_011:             // LD.W
                 begin
                     id_rf_ra1 = ifid_ir[4:0];
                     id_rf_wa = ifid_ir[9:5];
@@ -690,7 +694,9 @@ always @* begin
                     id_ctl_wb.MemtoReg = '1;
                     id_ctl_wb.RegWrite = '1;
                 end
-            6'b110_1??:             // ST
+            6'b110_100,             // ST.B
+            6'b110_101,             // ST.H
+            6'b110_111:             // ST.W
                 begin
                     id_rf_ra1 = ifid_ir[4:0];
                     id_rf_ra2 = ifid_ir[9:5];
@@ -764,7 +770,10 @@ always @* begin
     ex_euccb = '0;
     ex_eucco = '0;
 
-    if (id_trap) begin
+    if (id_invalid) begin
+        ex_euccb = 16'hFF90;
+    end
+    else if (id_trap) begin
         ex_euccb = 16'hFFA0;
         ex_eucco = ifid_ir[4:0];
     end
@@ -794,7 +803,8 @@ assign PSW_SET.ep = id_exc_set_psw_go & ~INEX_NP;
 assign PSW_SET.np = id_exc_set_psw_go & INEX_NP;
 assign PSW_SET.i = {4{PSW_SET.ep}} & INEX_IEL;
 
-assign ex_euf = id_trap;
+assign ex_euf = ~id_stall & (id_trap | id_invalid);
+assign if_exc_cur_pc = ex_euf & ~id_trap;
 assign if_exc_done = ifid_exc & id_done;
 
 //////////////////////////////////////////////////////////////////////
