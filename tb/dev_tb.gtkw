@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Mon Dec 22 00:23:46 2025
+[*] Sun Dec 28 19:30:39 2025
 [*]
 [dumpfile] "/Users/dhunter/src/mister/Test_V810_MiSTer/rtl/v810/tb/dev_tb.vcd"
-[dumpfile_mtime] "Sun Dec 21 23:50:50 2025"
-[dumpfile_size] 1475209
+[dumpfile_mtime] "Sun Dec 28 19:29:25 2025"
+[dumpfile_size] 7304213
 [savefile] "/Users/dhunter/src/mister/Test_V810_MiSTer/rtl/v810/tb/dev_tb.gtkw"
-[timestart] 2849
+[timestart] 662
 [size] 1333 600
 [pos] -1 -1
-*-6.566064 3120 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+*-8.412813 1480 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 [markername] AA
 [markername] BB
 [markername] CC
@@ -255,21 +255,37 @@ dev_tb.dut.id_ccnt[5:0]
 @28
 dev_tb.dut.ex_stall
 dev_tb.dut.ex_flush
-@22
+@23
 dev_tb.dut.idex_pc[31:0]
+@22
 dev_tb.dut.idex_ir[31:0]
 dev_tb.dut.idex_rf_rd1[31:0]
 dev_tb.dut.idex_rf_rd2[31:0]
 dev_tb.dut.idex_rf_wa[4:0]
-@23
-dev_tb.dut.idex_ctl[43:0]
-@22
 dev_tb.dut.alu_in1[31:0]
 dev_tb.dut.alu_in2[31:0]
 dev_tb.dut.alu_op[3:0]
 dev_tb.dut.alu_out[31:0]
 @28
 dev_tb.dut.alu_fl[3:0]
+@800200
+-mpy
+@28
+dev_tb.dut.alu_mpy_signed
+@22
+dev_tb.dut.alu_mpy_a[31:0]
+dev_tb.dut.alu_mpy_b[31:0]
+dev_tb.dut.alu_mpy_prd[31:0]
+dev_tb.dut.alu_mpy_acc[63:0]
+@28
+dev_tb.dut.alu_mpy_cy
+@22
+dev_tb.dut.alu_mpy_out[31:0]
+@28
+dev_tb.dut.alu_mpy_out_neg
+dev_tb.dut.alu_mpy_ov
+@1000200
+-mpy
 @22
 dev_tb.dut.bcond_match
 @28

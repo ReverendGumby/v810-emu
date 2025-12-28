@@ -88,6 +88,22 @@ typedef enum bit [3:0] {
     ALUOP_NOT = 4'b1111
 } aluop_t;
 
+typedef enum bit [3:0] {
+    ALUOPMUL_NOP = 4'd0,
+    ALUOPMUL_IN,
+    ALUOPMUL_MPYLL,
+    ALUOPMUL_ACCLL,
+    ALUOPMUL_MPYHH,
+    ALUOPMUL_ACCHH,
+    ALUOPMUL_MPYLH,
+    ALUOPMUL_ACCLH1,
+    ALUOPMUL_ACCLH2,
+    ALUOPMUL_MPYHL,
+    ALUOPMUL_ACCHL1,
+    ALUOPMUL_ACCHL2,
+    ALUOPMUL_OUTL,
+    ALUOPMUL_OUTH
+} aluop_mul_t;
 
 //////////////////////////////////////////////////////////////////////
 // Control registers
@@ -109,7 +125,8 @@ typedef enum bit [2:0] {
     ALUSRC1_PC,
     ALUSRC1_BMATCH,
     ALUSRC1_SR_RD,
-    ALUSRC1_EXC_A
+    ALUSRC1_EXC_A,
+    ALUSRC1_MPYOUT
 } alu_src1_t;
 
 typedef enum bit [2:0] {
@@ -126,6 +143,8 @@ typedef struct packed {
     logic [3:0] ALUOp;
     alu_src1_t  ALUSrc1;
     alu_src2_t  ALUSrc2;
+    aluop_mul_t ALUOpMul;
+    logic       ALUMulSigned;
     logic       Branch;
     logic [3:0] Bcond;
     sr_sel_t    SRSelRead;
@@ -561,6 +580,75 @@ always @* begin
                     id_ctl_ex.ALUOp = ALUOP_SUB;
                     id_ctl_ma.FlagMask = '1;
                 end
+            6'b001_000,             // MUL
+            6'b001_010:             // MULU
+                begin
+                    id_ctl_ex.ALUMulSigned = ~ifid_ir[11];
+                    if (id_ccnt == 'd0) begin
+                        id_rf_ra1 = ifid_ir[4:0];
+                        id_rf_ra2 = ifid_ir[9:5];
+                        id_ctl_ex.ALUOpMul = ALUOPMUL_IN;
+                        id_ctl_ex.Extend = '1;
+                    end
+                    else if (id_ccnt == 'd1) begin
+                        id_ctl_ex.ALUOpMul = ALUOPMUL_MPYLL;
+                        id_ctl_ex.Extend = '1;
+                    end
+                    else if (id_ccnt == 'd2) begin
+                        id_ctl_ex.ALUOpMul = ALUOPMUL_ACCLL;
+                        id_ctl_ex.Extend = '1;
+                    end
+                    else if (id_ccnt == 'd3) begin
+                        id_ctl_ex.ALUOpMul = ALUOPMUL_MPYHH;
+                        id_ctl_ex.Extend = '1;
+                    end
+                    else if (id_ccnt == 'd4) begin
+                        id_ctl_ex.ALUOpMul = ALUOPMUL_ACCHH;
+                        id_ctl_ex.Extend = '1;
+                    end
+                    else if (id_ccnt == 'd5) begin
+                        id_ctl_ex.ALUOpMul = ALUOPMUL_MPYLH;
+                        id_ctl_ex.Extend = '1;
+                    end
+                    else if (id_ccnt == 'd6) begin
+                        id_ctl_ex.ALUOpMul = ALUOPMUL_ACCLH1;
+                        id_ctl_ex.Extend = '1;
+                    end
+                    else if (id_ccnt == 'd7) begin
+                        id_ctl_ex.ALUOpMul = ALUOPMUL_ACCLH2;
+                        id_ctl_ex.Extend = '1;
+                    end
+                    else if (id_ccnt == 'd8) begin
+                        id_ctl_ex.ALUOpMul = ALUOPMUL_MPYHL;
+                        id_ctl_ex.Extend = '1;
+                    end
+                    else if (id_ccnt == 'd9) begin
+                        id_ctl_ex.ALUOpMul = ALUOPMUL_ACCHL1;
+                        id_ctl_ex.Extend = '1;
+                    end
+                    else if (id_ccnt == 'd10) begin
+                        id_ctl_ex.ALUOpMul = ALUOPMUL_ACCHL2;
+                        id_ctl_ex.Extend = '1;
+                    end
+                    else if (id_ccnt == 'd11) begin
+                        id_rf_wa = 'd30;
+                        id_ctl_ex.ALUSrc1 = ALUSRC1_MPYOUT;
+                        id_ctl_ex.ALUOp = ALUOP_MOV;
+                        id_ctl_ex.ALUOpMul = ALUOPMUL_OUTH;
+                        id_ctl_ma.FlagMask.Over = '1;
+                        id_ctl_wb.RegWrite = '1;
+                        id_ctl_ex.Extend = '1;
+                    end
+                    else if (id_ccnt == 'd12) begin
+                        id_rf_wa = ifid_ir[9:5];
+                        id_ctl_ex.ALUSrc1 = ALUSRC1_MPYOUT;
+                        id_ctl_ex.ALUOp = ALUOP_MOV;
+                        id_ctl_ex.ALUOpMul = ALUOPMUL_OUTL;
+                        id_ctl_ma.FlagMask.Zero = '1;
+                        id_ctl_ma.FlagMask.Sign = '1;
+                        id_ctl_wb.RegWrite = '1;
+                    end
+                end
             6'b010_010:             // SETF
                 begin
                     id_rf_wa = ifid_ir[9:5];
@@ -612,10 +700,19 @@ always @* begin
                 end
             6'b011_101:             // STSR
                 begin
-                    id_rf_wa = ifid_ir[9:5];
-                    id_ctl_ex.SRSelRead = sr_sel_t'(ifid_ir[4:0]);
-                    id_ctl_ma.SRtoReg = '1;
-                    id_ctl_wb.RegWrite = '1;
+                    // Wait for last ins. to writeback system registers
+                    if (id_ccnt == 'd0) begin
+                        id_ctl_ex.Extend = '1;
+                    end
+                    else if (id_ccnt == 'd1) begin
+                        id_ctl_ex.Extend = '1;
+                    end
+                    else if (id_ccnt == 'd2) begin
+                        id_rf_wa = ifid_ir[9:5];
+                        id_ctl_ex.SRSelRead = sr_sel_t'(ifid_ir[4:0]);
+                        id_ctl_ma.SRtoReg = '1;
+                        id_ctl_wb.RegWrite = '1;
+                    end
                 end
             6'b100_???:             // Bcond (branch)
                 begin
@@ -626,7 +723,7 @@ always @* begin
                     id_ctl_ex.Bcond = ifid_ir[12:9];
                 end
             6'b101_000,             // MOVEA
-                6'b101_001:             // ADDI
+            6'b101_001:             // ADDI
                     begin
                         id_rf_ra1 = ifid_ir[4:0];
                         id_rf_wa = ifid_ir[9:5];
@@ -877,6 +974,9 @@ wire [31:0]     idex_imm16_hi = {idex_ir[31:16], 16'b0};
 wire [31:0]     idex_imm16_ext = alu_se ? 32'($signed(idex_imm16)) : 32'(idex_imm16);
 wire [31:0]     idex_disp26 = 32'($signed({idex_ir[9:0], idex_ir[31:16]}));
 
+logic [31:0]    alu_mpy_out;
+logic           alu_mpy_ov;
+
 always @* begin
     alu_in1 = 'X;
     case (idex_ctl.ex.ALUSrc1)
@@ -886,6 +986,7 @@ always @* begin
         ALUSRC1_BMATCH: alu_in1 = {31'b0, bcond_match};
         ALUSRC1_SR_RD:  alu_in1 = ex_sr_rd;
         ALUSRC1_EXC_A:  alu_in1 = INEX_HA;
+        ALUSRC1_MPYOUT: alu_in1 = alu_mpy_out;
         default: ;
     endcase
 end
@@ -907,6 +1008,7 @@ assign alu_op = aluop_t'(idex_ctl.ex.ALUOp);
 
 always @* begin
     alu_fl = '0;
+    alu_fl.Over = alu_mpy_ov;
     case (alu_op)
         ALUOP_MOV:
             alu_out = alu_in1;
@@ -939,6 +1041,90 @@ always @* begin
     endcase
     alu_fl.Zero = ~|alu_out;
     alu_fl.Sign = alu_out[31];
+end
+
+// I have no idea how actual silicon performs multiplication. Here is
+// something that functions.
+//
+// Perform long multiplication on 16-bit groups:
+//
+//  ahal * bhbl = (al*bl) + ((ah*bh) << 32)
+//              + ((ah*bl) << 16) + ((al*bh) << 16)
+//
+// To perform signed multiplication:
+//  1. Make both inputs positive
+//  2. Proceed as above for unsigned multiplication
+//  3. If exactly one input was negative, negate the output
+
+logic        alu_mpy_signed;
+logic [31:0] alu_mpy_a, alu_mpy_b, alu_mpy_prd;
+logic [63:0] alu_mpy_acc;
+logic        alu_mpy_cy;
+logic        alu_mpy_out_neg;
+
+assign alu_mpy_signed = idex_ctl.ex.ALUMulSigned;
+
+always @(posedge CLK) if (CE) begin
+    if (~RESn) begin
+        alu_mpy_a <= '0;
+        alu_mpy_b <= '0;
+        alu_mpy_out_neg <= '0;
+        alu_mpy_prd <= '0;
+        alu_mpy_acc <= '0;
+        alu_mpy_cy <= '0;
+    end
+    else if (~ex_stall) begin
+        case (idex_ctl.ex.ALUOpMul)
+            ALUOPMUL_IN: begin
+                alu_mpy_a <= (alu_mpy_signed & alu_in1[31]) ? -alu_in1 : alu_in1;
+                alu_mpy_b <= (alu_mpy_signed & alu_in2[31]) ? -alu_in2 : alu_in2;
+                alu_mpy_out_neg <= alu_mpy_signed & (alu_in1[31] ^ alu_in2[31]);
+            end
+            ALUOPMUL_MPYLL:
+                alu_mpy_prd <= alu_mpy_a[0+:16] * alu_mpy_b[0+:16];
+            ALUOPMUL_ACCLL:
+                alu_mpy_acc[0+:32] <= alu_mpy_prd;
+            ALUOPMUL_MPYHH:
+                alu_mpy_prd <= alu_mpy_a[16+:16] * alu_mpy_b[16+:16];
+            ALUOPMUL_ACCHH:
+                alu_mpy_acc[32+:32] <= alu_mpy_prd;
+            ALUOPMUL_MPYLH:
+                alu_mpy_prd <= alu_mpy_a[16+:16] * alu_mpy_b[0+:16];
+            ALUOPMUL_ACCLH1, ALUOPMUL_ACCHL1:
+                {alu_mpy_cy, alu_mpy_acc[0+:32]}
+                    <= alu_mpy_acc[0+:32] + {alu_mpy_prd[0+:16], 16'b0};
+            ALUOPMUL_ACCLH2, ALUOPMUL_ACCHL2:
+                {alu_mpy_cy, alu_mpy_acc[32+:32]}
+                    <= alu_mpy_acc[32+:32] + {16'b0, alu_mpy_prd[16+:16]}
+                       + 33'(alu_mpy_cy);
+            ALUOPMUL_MPYHL:
+                alu_mpy_prd <= alu_mpy_a[0+:16] * alu_mpy_b[16+:16];
+            ALUOPMUL_OUTL:
+                // Assist with negation below
+                alu_mpy_cy <= ~|alu_mpy_acc[0+:32];
+            default: ;
+        endcase
+    end
+end
+
+always @* begin :p_alu_mpy_out
+    alu_mpy_out = '0;
+    alu_mpy_ov = '0;
+
+    case (idex_ctl.ex.ALUOpMul)
+        ALUOPMUL_OUTL: begin
+            alu_mpy_out = alu_mpy_acc[0+:32];
+            if (alu_mpy_out_neg)
+                alu_mpy_out = -alu_mpy_out;
+        end
+        ALUOPMUL_OUTH: begin
+            alu_mpy_out = alu_mpy_acc[32+:32];
+            alu_mpy_ov = |alu_mpy_out;
+            if (alu_mpy_out_neg)
+                alu_mpy_out = ~alu_mpy_out + 32'(alu_mpy_cy);
+        end
+        default: ;
+    endcase
 end
 
 //////////////////////////////////////////////////////////////////////

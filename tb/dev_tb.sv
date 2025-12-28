@@ -347,7 +347,7 @@ end
 
 always @test_started begin
     begin :emergency_exit
-        #10 ;
+        #40 ;
         // If we reach this point, halted didn't assert in time.
         $error("Emergency exit!");
         $fatal(1);
@@ -541,6 +541,14 @@ task test_stsr0;
     assert(dut.rf.rmem[15] == 32'd15);
 endtask
 
+task test_stsr1;
+    imem.load_hex16("dev_imem_stsr1.hex");
+    start_test;
+    end_test;
+
+    assert(dut.rf.rmem[15] == 32'd15);
+endtask
+
 task test_inout0;
     imem.load_hex16("dev_imem_inout0.hex");
     dmem.load_hex("dev_dmem_inout0.hex");
@@ -649,6 +657,26 @@ task test_invalid_op;
     assert(dut_sr.ecr.eicc == 16'hff90);
 endtask
 
+task test_mul;
+    imem.load_hex16("dev_imem_mul.hex");
+    dmem.load_hex("dev_dmem_mul.hex");
+
+    start_test;
+    end_test;
+
+    assert(dut.rf.rmem[16] == 32'd0);
+endtask
+
+task test_mulu;
+    imem.load_hex16("dev_imem_mulu.hex");
+    dmem.load_hex("dev_dmem_mulu.hex");
+
+    start_test;
+    end_test;
+
+    assert(dut.rf.rmem[16] == 32'd0);
+endtask
+
 task test_all;
     test_mov_rr;
     test_alu0;
@@ -665,6 +693,7 @@ task test_all;
     test_ldst2;
     test_ldsr0;
     test_ldsr1;
+    test_stsr1;
     test_stsr0;
     test_inout0;
     test_inout1;
@@ -674,6 +703,8 @@ task test_all;
     test_reti0;
     test_reti1;
     test_invalid_op;
+    test_mul;
+    test_mulu;
 endtask
 
 task test_all_ram_modes;
