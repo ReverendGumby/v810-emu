@@ -58,10 +58,10 @@ dev_tb.dut_mem.wb_read
 @28
 dev_tb.dut_mem.bm_sel_wb
 dev_tb.dut_mem.bm_sel_eud
-dev_tb.dut_mem.bm_sel_eui
+dev_tb.dut_mem.bm_sel_ici
 dev_tb.dut_mem.bm_sel_wb_d
 dev_tb.dut_mem.bm_sel_eud_d
-dev_tb.dut_mem.bm_sel_eui_d
+dev_tb.dut_mem.bm_sel_ici_d
 dev_tb.dut_mem.bm_sel_none_d
 @22
 dev_tb.dut_mem.bm_ebi_a[31:0]
@@ -262,6 +262,7 @@ dev_tb.dut.idex_ir[31:0]
 dev_tb.dut.idex_rf_rd1[31:0]
 dev_tb.dut.idex_rf_rd2[31:0]
 dev_tb.dut.idex_rf_wa[4:0]
+dev_tb.dut.idex_ctl[48:0]
 dev_tb.dut.alu_in1[31:0]
 dev_tb.dut.alu_in2[31:0]
 dev_tb.dut.alu_op[3:0]

@@ -64,7 +64,11 @@ v810 dut
    .RW(cpu_rw),
    .BCYSTn(cpu_bcystn),
    .READYn(cpu_readyn),
-   .SZRQn(cpu_szrqn)
+   .SZRQn(cpu_szrqn),
+
+   .INT('0),
+   .INTVn('1),
+   .NMIn('1)
    );
 
 always @* begin
@@ -127,7 +131,7 @@ assign unk_cen = ~(ram_cen & rom_cen);
 initial begin
     rescnt = 0;
     res = 1;
-    ce = 1;
+    ce = 0;
     clk = 1;
 end
 
@@ -135,10 +139,13 @@ always begin :ckgen
     #0.02 clk = ~clk;
 end
 
+always @(posedge clk)
+    ce <= ~ce;
+
 initial #0 begin
     rom_ws = 0;
     rom_dw = 16;
-    rombios.load_hex16("pcfx.rom.hex");
+    rombios.load_hex16("rom.hex");
 end
 
 always @(posedge clk) if (ce) begin
@@ -151,8 +158,7 @@ always @(posedge clk) if (ce) begin
 end
 
 initial #(40e3) begin
-    $error("Emergency exit!");
-    $fatal(1);
+    $finish();
 end
 
 endmodule

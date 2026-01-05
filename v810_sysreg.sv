@@ -27,7 +27,12 @@ module v810_sysreg
 
    input [15:0]  ECR_CC,
    input         ECR_SET_EICC,
-   input         ECR_SET_FECC
+   input         ECR_SET_FECC,
+
+   // External register interface
+   input [31:0]  CHCW,
+   output [31:0] CHCW_WD,
+   output        CHCW_WE
    );
 
 //////////////////////////////////////////////////////////////////////
@@ -36,7 +41,6 @@ module v810_sysreg
 logic [31:0]    eipc, fepc;
 psw_t           eipsw, fepsw, psw;
 ecr_t           ecr;
-logic [31:0]    chcw;
 
 //////////////////////////////////////////////////////////////////////
 // Read/write interface
@@ -51,7 +55,7 @@ always @* begin
         SRSEL_FEPSW:    rd = fepsw;
         SRSEL_ECR:      rd = ecr;
         SRSEL_PSW:      rd = psw;
-        SRSEL_CHCW:     rd = chcw;
+        SRSEL_CHCW:     rd = CHCW;
         default:        rd = 'X;
     endcase
 end
@@ -90,7 +94,6 @@ always @(posedge CLK) if (CE) begin
         eipsw <= '0;
         fepc <= '0;
         fepsw <= '0;
-        chcw <= '0;
     end
     else begin
         if (WE) begin
@@ -99,7 +102,6 @@ always @(posedge CLK) if (CE) begin
                 SRSEL_EIPSW:    eipsw <= WD;
                 SRSEL_FEPC:     fepc <= WD;
                 SRSEL_FEPSW:    fepsw <= WD;
-                SRSEL_CHCW:     chcw <= WD;
                 default:        ;
             endcase
 
@@ -115,8 +117,11 @@ always @(posedge CLK) if (CE) begin
 end
 
 //////////////////////////////////////////////////////////////////////
-// Dedicated read ports
+// Dedicated read/write ports
 
 assign PSW = psw;
+
+assign CHCW_WD = WD;
+assign CHCW_WE = CE & WE & (WA == SRSEL_CHCW);
 
 endmodule

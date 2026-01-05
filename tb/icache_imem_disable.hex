@@ -1,0 +1,37 @@
+@0
+
+// Clear I$
+
+4021 // MOV #1, r1
+BC21 0001 // MOVHI #1, r1, r1
+7038 // LDSR r1, CHCW // CHCW <- 0x00010001
+
+// Set up for the loop
+
+A040 0032 // MOVEA #50, r0, r2
+
+// Enable I$ (set CHCW.ICE)
+
+4022 // MOV #2, r1
+7038 // LDSR r1, CHCW
+
+// Run a brief wait loop
+
+445F // ADDI #-1, r2
+9A00 // NOP
+95FC // BNE .-4
+9A00 // NOP
+
+// Disable I$ (clear CHCW.ICE)
+
+7018 // LDSR r0, CHCW
+9A00 // NOP
+9A00 // NOP
+9A00 // NOP
+
+6800 // HALT
+
+
+@7F8 // FFFF_FFF0: Reset
+BFE0 8000 // MOVHI #0x8000, r0, r31
+181F      // JMP LP

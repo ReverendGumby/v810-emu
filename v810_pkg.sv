@@ -30,6 +30,17 @@ typedef struct packed {
     logic [15:0] eicc;
 } ecr_t;
 
+typedef struct packed {
+    logic [11:0] cen;
+    logic [11:0] cec;
+    logic [1:0] rfu6;
+    logic icr;
+    logic icd;
+    logic [1:0] rfu2;
+    logic ice;
+    logic icc;
+} chcw_t;
+
 typedef enum bit [4:0] {
     SRSEL_EIPC = 5'd0,
     SRSEL_EIPSW = 5'd1,

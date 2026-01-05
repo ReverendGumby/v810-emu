@@ -1,0 +1,26 @@
+@0
+
+// Clear I$ (as per PC-FX BIOS):
+//   CEN = 0
+//   CEC = 256
+//   ICC = 1
+
+4021 // MOV #1, r1
+BC21 0001 // MOVHI #1, r1, r1
+7038 // LDSR r1, CHCW // CHCW <- 0x00010001
+
+// These instructions are here to let us see how IF stage activity
+// overlaps with cache maintenance.
+
+BC20 0001 // MOVHI #1, r0, r1
+BC20 0001 // MOVHI #1, r0, r1
+9A00 // NOP
+9A00 // NOP
+9A00 // NOP
+
+6800 // HALT
+
+
+@7F8 // FFFF_FFF0: Reset
+BFE0 8000 // MOVHI #0x8000, r0, r31
+181F      // JMP LP

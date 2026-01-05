@@ -1,0 +1,107 @@
+[*]
+[*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
+[*] Wed Jan  7 05:55:27 2026
+[*]
+[dumpfile] "/Users/dhunter/src/mister/Test_V810_MiSTer/rtl/v810/tb/icache_tb.vcd"
+[dumpfile_mtime] "Wed Jan  7 05:53:05 2026"
+[dumpfile_size] 1151854
+[savefile] "/Users/dhunter/src/mister/Test_V810_MiSTer/rtl/v810/tb/icache_tb.gtkw"
+[timestart] 0
+[size] 1333 600
+[pos] -1 -1
+*-14.327714 86400 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+[markername] AA
+[markername] BB
+[markername] CC
+[markername] DD
+[markername] EE
+[markername] FF
+[markername] GG
+[markername] HH
+[markername] II
+[markername] JJ
+[markername] KK
+[markername] LL
+[markername] MM
+[markername] NN
+[markername] OO
+[markername] PP
+[markername] QQ
+[markername] RR
+[markername] SS
+[markername] TT
+[markername] UU
+[markername] VV
+[markername] WW
+[markername] XX
+[markername] YY
+[markername] ZZ
+[treeopen] icache_tb.
+[treeopen] icache_tb.dut.
+[treeopen] icache_tb.dut.eu.
+[sst_width] 255
+[signals_width] 204
+[sst_expanded] 1
+[sst_vpaned_height] 159
+@22
+icache_tb.dut.A[31:0]
+icache_tb.dut.D_I[31:0]
+@28
+icache_tb.dut.BEn[3:0]
+icache_tb.dut.ST[1:0]
+icache_tb.dut.DAn
+icache_tb.dut.MRQn
+icache_tb.dut.RW
+icache_tb.dut.BCYSTn
+icache_tb.dut.READYn
+@200
+-
+@22
+icache_tb.dut.sr.CHCW[31:0]
+@28
+icache_tb.dut.icache.icmaint
+@22
+icache_tb.dut.icache.tag_ra[6:0]
+icache_tb.dut.icache.tag_rd[27:0]
+icache_tb.dut.icache.tag_wa[6:0]
+icache_tb.dut.icache.tag_wd[27:0]
+@29
+icache_tb.dut.icache.tag_we
+@22
+icache_tb.dut.icache.data_a[9:0]
+icache_tb.dut.icache.data_rd[31:0]
+icache_tb.dut.icache.data_wd[31:0]
+@28
+icache_tb.dut.icache.data_we
+icache_tb.dut.icache.hit
+icache_tb.dut.icache.miss
+icache_tb.dut.icache.fill
+@200
+-
+@22
+icache_tb.dut.icache.EUIA[31:0]
+icache_tb.dut.icache.EUID[31:0]
+@28
+icache_tb.dut.icache.EUIACK
+icache_tb.dut.icache.EUIREQ
+@22
+icache_tb.dut.icache.ICIA[31:0]
+icache_tb.dut.icache.ICID[31:0]
+@28
+icache_tb.dut.icache.ICIACK
+icache_tb.dut.icache.ICIREQ
+@200
+-
+@28
+icache_tb.dut.eu.haz_data
+icache_tb.dut.eu.haz_bcond
+icache_tb.dut.eu.haz_flag
+icache_tb.dut.eu.haz_setf
+icache_tb.dut.eu.haz_sys
+icache_tb.dut.eu.if_stall
+@22
+icache_tb.dut.eu.ifid_pc[31:0]
+icache_tb.dut.eu.idex_pc[31:0]
+icache_tb.dut.eu.rf.rmem02[31:0]
+[pattern_trace] 1
+[pattern_trace] 0

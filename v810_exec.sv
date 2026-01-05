@@ -57,7 +57,10 @@ module v810_exec
    output        psw_t PSW_RESET,
    output        psw_t PSW_SET,
    output        ECR_SET_EICC,
-   output        ECR_SET_FECC
+   output        ECR_SET_FECC,
+
+   // Global instruction cache state
+   input         ICMAINT
    );
 
 
@@ -1371,7 +1374,11 @@ wire haz_sys2_ex = idex_ctl.wb.IOtoReg;
 wire haz_sys2_ma = exma_ctl.wb.IOtoReg;
 wire haz_sys2 = haz_sys2_ex | haz_sys2_ma;
 
-wire haz_sys = haz_sys1 | haz_sys2;
+// (3) Instructions must not be fetched during cache maintenance.
+
+wire haz_sys3 = ICMAINT;
+
+wire haz_sys = haz_sys1 | haz_sys2 | haz_sys3;
 
 wire branch_incomplete = if_pc_set/* | if_pc_set_ins_fetch*/;
 assign if_stall = (haz_data | haz_flag | haz_sys) & ~branch_incomplete;

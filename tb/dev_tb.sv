@@ -23,9 +23,9 @@ wire [1:0]      dut_dst;
 wire            dut_dreq, dut_dack;
 
 wire [31:0]     dut_mem_a;
-logic [31:0]    dut_mem_euia;
-wire [31:0]     dut_mem_d_i, dut_mem_d_o, dut_mem_euid;
-logic           dut_mem_euireq, dut_mem_euiack;
+logic [31:0]    dut_mem_icia;
+wire [31:0]     dut_mem_d_i, dut_mem_d_o, dut_mem_icid;
+logic           dut_mem_icireq, dut_mem_iciack;
 wire [3:0]      dut_mem_ben;
 wire [1:0]      dut_mem_st;
 wire            dut_mem_dan;
@@ -114,7 +114,9 @@ v810_exec dut
    .PSW_RESET(psw_reset),
    .PSW_SET(psw_set),
    .ECR_SET_EICC(ecr_set_eicc),
-   .ECR_SET_FECC(ecr_set_fecc)
+   .ECR_SET_FECC(ecr_set_fecc),
+
+   .ICMAINT('0)
    );
 
 v810_inex dut_inex
@@ -159,7 +161,11 @@ v810_sysreg dut_sr
    .PSW_SET(psw_set),
    .ECR_CC(inex_cc),
    .ECR_SET_EICC(ecr_set_eicc),
-   .ECR_SET_FECC(ecr_set_fecc)
+   .ECR_SET_FECC(ecr_set_fecc),
+
+   .CHCW('0),
+   .CHCW_WD(),
+   .CHCW_WE()
    );
 
 v810_mem dut_mem
@@ -179,10 +185,10 @@ v810_mem dut_mem
    .EUDREQ(dut_dreq),
    .EUDACK(dut_dack),
 
-   .EUIA(dut_mem_euia),
-   .EUID(dut_mem_euid),
-   .EUIREQ(dut_mem_euireq),
-   .EUIACK(dut_mem_euiack),
+   .ICIA(dut_mem_icia),
+   .ICID(dut_mem_icid),
+   .ICIREQ(dut_mem_icireq),
+   .ICIACK(dut_mem_iciack),
 
    .A(dut_mem_a),
    .D_I(dut_mem_d_i),
@@ -203,8 +209,8 @@ always @* begin
         dut_id = imem_do;
         dut_iack = dut_ireq;
 
-        dut_mem_euireq = '0;
-        dut_mem_euia = 'Z;
+        dut_mem_icireq = '0;
+        dut_mem_icia = 'Z;
 
         imem_ws = 0;
         imem_dw = 32;
@@ -215,11 +221,11 @@ always @* begin
         idbr_mem_do = 'Z;
     end
     else begin
-        dut_id = dut_mem_euid;
-        dut_iack = dut_mem_euiack;
+        dut_id = dut_mem_icid;
+        dut_iack = dut_mem_iciack;
 
-        dut_mem_euireq = dut_ireq;
-        dut_mem_euia = dut_ia;
+        dut_mem_icireq = dut_ireq;
+        dut_mem_icia = dut_ia;
 
         imem_ws = dmem_ws;
         imem_dw = dmem_dw;

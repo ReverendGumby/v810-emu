@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Sun Nov 23 05:37:06 2025
+[*] Wed Jan  7 06:04:27 2026
 [*]
-[dumpfile] "/Users/dhunter/src/v810-emu/tb/bios_tb.verilator.fst"
-[dumpfile_mtime] "Sun Nov 23 05:24:36 2025"
-[dumpfile_size] 30547813
-[savefile] "/Users/dhunter/src/v810-emu/tb/bios_tb.verilator.gtkw"
+[dumpfile] "/Users/dhunter/src/mister/Test_V810_MiSTer/rtl/v810/tb/bios_tb.verilator.fst"
+[dumpfile_mtime] "Wed Jan  7 06:01:24 2026"
+[dumpfile_size] 966290
+[savefile] "/Users/dhunter/src/mister/Test_V810_MiSTer/rtl/v810/tb/bios_tb.verilator.gtkw"
 [timestart] 0
 [size] 1333 768
 [pos] 14 0
-*-7.866713 10804880 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+*-23.299301 21708440 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 [markername] AA
 [markername] BB
 [markername] CC
@@ -40,7 +40,7 @@
 [sst_width] 255
 [signals_width] 283
 [sst_expanded] 1
-[sst_vpaned_height] 266
+[sst_vpaned_height] 498
 @28
 bios_tb.ram_cen
 bios_tb.rom_cen
@@ -61,10 +61,10 @@ bios_tb.dut.mem.wb_read
 @28
 bios_tb.dut.mem.bm_sel_wb
 bios_tb.dut.mem.bm_sel_eud
-bios_tb.dut.mem.bm_sel_eui
+bios_tb.dut.mem.bm_sel_ici
 bios_tb.dut.mem.bm_sel_wb_d
 bios_tb.dut.mem.bm_sel_eud_d
-bios_tb.dut.mem.bm_sel_eui_d
+bios_tb.dut.mem.bm_sel_ici_d
 bios_tb.dut.mem.bm_sel_none_d
 @22
 bios_tb.dut.mem.bm_ebi_a[31:0]
@@ -124,7 +124,7 @@ bios_tb.dut.eu.DACK
 -sysreg
 @22
 bios_tb.dut.sr.psw[31:0]
-bios_tb.dut.sr.chcw[31:0]
+bios_tb.dut.sr.CHCW[31:0]
 @28
 bios_tb.dut.eu.halted
 @1000200
@@ -223,7 +223,7 @@ bios_tb.dut.eu.idex_ir[31:0]
 bios_tb.dut.eu.idex_rf_rd1[31:0]
 bios_tb.dut.eu.idex_rf_rd2[31:0]
 bios_tb.dut.eu.idex_rf_wa[4:0]
-bios_tb.dut.eu.idex_ctl[36:0]
+bios_tb.dut.eu.idex_ctl[48:0]
 bios_tb.dut.eu.alu_in1[31:0]
 bios_tb.dut.eu.alu_in2[31:0]
 bios_tb.dut.eu.alu_op[3:0]

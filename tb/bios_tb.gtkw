@@ -62,10 +62,10 @@ bios_tb.dut.mem.wb_read
 @28
 bios_tb.dut.mem.bm_sel_wb
 bios_tb.dut.mem.bm_sel_eud
-bios_tb.dut.mem.bm_sel_eui
+bios_tb.dut.mem.bm_sel_ici
 bios_tb.dut.mem.bm_sel_wb_d
 bios_tb.dut.mem.bm_sel_eud_d
-bios_tb.dut.mem.bm_sel_eui_d
+bios_tb.dut.mem.bm_sel_ici_d
 bios_tb.dut.mem.bm_sel_none_d
 @22
 bios_tb.dut.mem.bm_ebi_a[31:0]

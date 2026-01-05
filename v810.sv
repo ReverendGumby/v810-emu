@@ -6,6 +6,11 @@
 
 import v810_pkg::*;
 
+// Clocking requirements:
+//
+// CE sets the base CPU clock rate, nominally 25 MHz.  CLK must be at
+// least twice the CE rate (e.g., 50 MHz), to satisfy I$ timing.
+
 module v810
   (
    input         RESn,
@@ -41,9 +46,13 @@ wire [3:0]      inex_iel;
 wire [31:0]     inex_ha;
 wire            inex_ack;
 
-logic [31:0]    euia, euda;
-logic [31:0]    euid;
-logic           euireq, euiack;
+wire [31:0]     euia;
+wire [31:0]     euid;
+wire            euireq, euiack;
+wire [31:0]     icia;
+wire [31:0]     icid;
+wire            icireq, iciack;
+wire [31:0]     euda;
 wire [31:0]     eudd_i, eudd_o;
 wire [1:0]      eudbc;
 wire [3:0]      eudbe;
@@ -57,6 +66,10 @@ wire [31:0]     sr_rd, sr_wd;
 wire            sr_we;
 psw_t           psw, psw_reset, psw_set;
 wire            ecr_set_eicc, ecr_set_fecc;
+wire [31:0]     chcw, chcw_wd;
+wire            chcw_we;
+
+wire            icmaint;
 
 v810_inex inex
   (
@@ -123,7 +136,9 @@ v810_exec eu
    .PSW_RESET(psw_reset),
    .PSW_SET(psw_set),
    .ECR_SET_EICC(ecr_set_eicc),
-   .ECR_SET_FECC(ecr_set_fecc)
+   .ECR_SET_FECC(ecr_set_fecc),
+
+   .ICMAINT(icmaint)
    );
 
 v810_sysreg sr
@@ -144,7 +159,34 @@ v810_sysreg sr
    .PSW_SET(psw_set),
    .ECR_CC(inex_cc),
    .ECR_SET_EICC(ecr_set_eicc),
-   .ECR_SET_FECC(ecr_set_fecc)
+   .ECR_SET_FECC(ecr_set_fecc),
+
+   .CHCW(chcw),
+   .CHCW_WD(chcw_wd),
+   .CHCW_WE(chcw_we)
+   );
+
+v810_icache icache
+  (
+   .RESn(RESn),
+   .CLK(CLK),
+   .CE(CE),
+
+   .CHCW(chcw),
+   .CHCW_WD(chcw_wd),
+   .CHCW_WE(chcw_we),
+
+   .ICMAINT(icmaint),
+
+   .EUIA(euia),
+   .EUID(euid),
+   .EUIREQ(euireq),
+   .EUIACK(euiack),
+
+   .ICIA(icia),
+   .ICID(icid),
+   .ICIREQ(icireq),
+   .ICIACK(iciack)
    );
 
 v810_mem mem
@@ -152,6 +194,11 @@ v810_mem mem
    .RESn(RESn),
    .CLK(CLK),
    .CE(CE),
+
+   .ICIA(icia),
+   .ICID(icid),
+   .ICIREQ(icireq),
+   .ICIACK(iciack),
 
    .EUDA(euda),
    .EUDD_I(eudd_i),
@@ -163,11 +210,6 @@ v810_mem mem
    .EUDST(eudst),
    .EUDREQ(eudreq),
    .EUDACK(eudack),
-
-   .EUIA(euia),
-   .EUID(euid),
-   .EUIREQ(euireq),
-   .EUIACK(euiack),
 
    .A(A),
    .D_I(D_I),

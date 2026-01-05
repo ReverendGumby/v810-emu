@@ -62,10 +62,10 @@ inex_tb.dut.mem.wb_read
 @28
 inex_tb.dut.mem.bm_sel_wb
 inex_tb.dut.mem.bm_sel_eud
-inex_tb.dut.mem.bm_sel_eui
+inex_tb.dut.mem.bm_sel_ici
 inex_tb.dut.mem.bm_sel_wb_d
 inex_tb.dut.mem.bm_sel_eud_d
-inex_tb.dut.mem.bm_sel_eui_d
+inex_tb.dut.mem.bm_sel_ici_d
 inex_tb.dut.mem.bm_sel_none_d
 @22
 inex_tb.dut.mem.bm_ebi_a[31:0]
@@ -270,7 +270,7 @@ inex_tb.dut.eu.ex_flush
 @22
 inex_tb.dut.eu.idex_pc[31:0]
 inex_tb.dut.eu.idex_ir[31:0]
-inex_tb.dut.eu.idex_ctl[43:0]
+inex_tb.dut.eu.idex_ctl[48:0]
 @28
 inex_tb.dut.eu.idex_exc
 @22

@@ -1,0 +1,37 @@
+@0
+
+// Clear I$
+
+4021 // MOV #1, r1
+BC21 0001 // MOVHI #1, r1, r1
+7038 // LDSR r1, CHCW // CHCW <- 0x00010001
+
+// Set up for the loop
+// Position loop so it fills the end of the cache.
+
+A040 0032 // MOVEA #50, r0, r2
+A100 03F0 // MOVEA #0x3F0, r0, r8
+BD08 8000 // MOVHI #0x8000, r8, r8
+1808 // JMP r8
+
+//   ORG 0x3F0
+@1F8
+// loop:
+
+// Enable I$ (set CHCW.ICE)
+
+4022 // MOV #2, r1
+7038 // LDSR r1, CHCW
+
+// Run a brief wait loop
+
+445F // ADDI #-1, r2
+9A00 // NOP
+95FC // BNE .-4
+
+6800 // HALT
+
+
+@7F8 // FFFF_FFF0: Reset
+BFE0 8000 // MOVHI #0x8000, r0, r31
+181F      // JMP LP
