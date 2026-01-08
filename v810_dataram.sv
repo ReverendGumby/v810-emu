@@ -4,7 +4,7 @@
 //
 // This program is GPL licensed. See COPYING for the full license.
 
-module v810_tagram
+module v810_dataram
   #(parameter int    addr_width = 8,
 	parameter int    data_width = 8
 	)
