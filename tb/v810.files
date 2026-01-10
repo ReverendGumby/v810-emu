@@ -1,11 +1,10 @@
-v810_tagram.sv
-v810_dataram.sv
-
 ../v810_pkg.sv
 ../v810_inex.sv
 ../v810_exec.sv
 ../v810_regfile.sv
 ../v810_sysreg.sv
+../v810_tagram.sv
+../v810_dataram.sv
 ../v810_icache.sv
 ../v810_mem.sv
 ../v810.sv

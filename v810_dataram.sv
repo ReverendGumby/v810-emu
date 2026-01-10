@@ -19,28 +19,16 @@ module v810_dataram
     input [data_width-1:0]  wr_data
     );
 
-altdpram
-   #(
-    .indata_reg("INCLOCK"),
-    .intended_device_family("Cyclone V"),
-    .lpm_type("altdpram"),
-    .outdata_reg("INCLOCK"),
-    .ram_block_type("MLAB"),
-    .rdaddress_reg("INCLOCK"),
-    .rdcontrol_reg("INCLOCK"),
-    .read_during_write_mode_mixed_ports("DONT_CARE"),
-    .width(data_width),
-    .widthad(addr_width),
-    .wrcontrol_reg("INCLOCK")
-    )
-   altdpram
-   (
-	.data(wr_data),
-	.inclock(clock),
-	.rdaddress(rd_address),
-	.wraddress(wr_address),
-	.wren(wr_en),
-	.q(rd_data)
-	);
+reg [data_width-1:0] mem [0:(1<<addr_width)-1];
+reg [data_width-1:0] rd_buf;
+
+always @(posedge clock) begin
+    rd_buf <= mem[rd_address];
+    if (wr_en) begin
+        mem[wr_address] <= wr_data;
+    end
+end
+
+assign rd_data = rd_buf;
 
 endmodule
