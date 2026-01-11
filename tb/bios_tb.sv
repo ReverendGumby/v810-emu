@@ -89,6 +89,7 @@ data_bus_resizer rom_dbr
    .DW(rom_dw),
    .CLK(clk),
    .CE(ce),
+   .CTLR_A1(cpu_a[1]),
    .CTLR_DAn(cpu_dan),
    .CTLR_BEn(cpu_ben),
    .CTLR_READYn(rom_dbr_readyn),

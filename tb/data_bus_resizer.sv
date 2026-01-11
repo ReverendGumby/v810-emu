@@ -12,6 +12,7 @@ module data_bus_resizer
    input               CLK,
    input               CE,
 
+   input               CTLR_A1,
    input               CTLR_DAn,
    input [3:0]         CTLR_BEn,
    output              CTLR_READYn,
@@ -45,7 +46,7 @@ always @* begin
 end
 
 assign CTLR_READYn = MEM_nCE | ~ready;
-assign CTLR_SZRQn = MEM_nCE | ~((DW == 16) & ready);
+assign CTLR_SZRQn = MEM_nCE | ~((DW == 16) & ~CTLR_A1 & ready);
 
 always @* begin
     if (DW == 32) begin
