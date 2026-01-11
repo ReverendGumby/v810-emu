@@ -1,0 +1,21 @@
+@0
+
+// Invalid instruction code 1-2 ins. after BR/JR/JAL should _not_
+// trigger an invalid instruction code exception.
+
+// Set PSW.NP=0, PSW.EP=0, PSW.Zero=1
+A100 0001 // MOVEA #0x0001, r0, r8  // r8 = 0x00000001
+7105 // LDSR r8, PSW    // Set PSW[0]
+
+8A04 // BR .+4
+6C00 // (invalid)
+
+8A06 // BR .+6
+6C00 // (invalid)
+6C00 // (invalid)
+
+6800 // HALT
+
+// FFFF_FF90: Vector address for invalid instruction code
+@7C8
+6800 // HALT

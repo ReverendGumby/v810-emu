@@ -850,7 +850,7 @@ always @(posedge CLK) if (CE) begin
 end
 
 // Decoded an invalid (or unimplemented) instruction
-wire id_invalid_ins = id_invalid & ~id_stall;
+wire id_invalid_ins = id_invalid & ~(id_stall | id_flush);
 
 assign if_stall = id_ctl_ex.Extend & ~(id_stall | id_flush);
 
@@ -903,7 +903,7 @@ assign PSW_SET.ep = id_exc_set_psw_go & ~INEX_NP;
 assign PSW_SET.np = id_exc_set_psw_go & INEX_NP;
 assign PSW_SET.i = {4{PSW_SET.ep}} & INEX_IEL;
 
-assign ex_euf = ~id_stall & (id_trap | id_invalid);
+assign ex_euf = ~(id_stall | id_flush) & (id_trap | id_invalid);
 assign if_exc_cur_pc = ex_euf & ~id_trap;
 assign if_exc_done = ifid_exc & id_done;
 

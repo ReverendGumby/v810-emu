@@ -665,6 +665,18 @@ task test_invalid_op;
     assert(dut_sr.ecr.eicc == 16'hff90);
 endtask
 
+task test_invalid_op2;
+    imem.load_hex16("dev_imem_invalid_op2.hex");
+    start_test;
+    end_test;
+
+    // This should _not_ trigger an exception.
+    assert(dut_sr.psw == 32'h00000001);
+    assert(dut_sr.eipsw == '0);
+    assert(dut_sr.ecr.fecc == '0);
+    assert(dut_sr.ecr.eicc == 16'hfff0);
+endtask
+
 task test_mul;
     imem.load_hex16("dev_imem_mul.hex");
     dmem.load_hex("dev_dmem_mul.hex");
@@ -711,6 +723,7 @@ task test_all;
     test_reti0;
     test_reti1;
     test_invalid_op;
+    test_invalid_op2;
     test_mul;
     test_mulu;
 endtask
