@@ -240,6 +240,7 @@ typedef enum bit [2:0] {
 bit             dbg_bypass_ebi_t1 = '0;
 
 ebst_t          ebstp, ebst;
+logic           eb_data;
 logic           eb_word1, eb_word2, eb_words;
 logic           eb_next_word;  // Last cycle of access
 logic           eb_two_half;   // Access will take two halfword cycles
@@ -309,6 +310,7 @@ always @(posedge CLK) if (CE) begin
     eb_two_half_d <= eb_two_half;
 end
 
+assign eb_data = (ebst == EBST_T2) | (ebst == EBST_T2S);
 assign eb_word1 = (ebst == EBST_T1) | (ebst == EBST_T2);
 assign eb_word2 = (ebst == EBST_T1S) | (ebst == EBST_T2S);
 assign eb_words = eb_word1 | eb_word2;
@@ -325,7 +327,7 @@ always @* begin
 end
 
 always @(posedge CLK) if (CE) begin
-    if (eb_word1 & eb_two_half & ~READYn)
+    if (eb_word1 & eb_data & eb_two_half & ~READYn)
         // Dynamic sizing: Buffer lower halfword in first bus cycle.
         eb_rbuf1 <= D_I[15:0];
 end
@@ -345,7 +347,7 @@ end
 
 always @* begin
     eb_do_p = bm_ebi_do;
-    if (eb_word2 | eb_halfword_byte_in_upper_half)
+    if (eb_word2)
         // Dynamic sizing: Shift upper to lower (output) halfword for writes.
         eb_do_p[15:0] = bm_ebi_do[31:16];
 end
@@ -395,7 +397,7 @@ assign A = eb_a;
 assign D_O = eb_do;
 assign BEn = ~eb_be;
 assign ST = eb_st;
-assign DAn = ~((ebst == EBST_T2) | (ebst == EBST_T2S));
+assign DAn = ~eb_data;
 assign MRQn = ~(bm_ebi_req & bm_ebi_mrq);
 assign RW = ~eb_wr;
 assign BCYSTn = ~eb_bcyst;
