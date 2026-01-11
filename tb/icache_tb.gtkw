@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Wed Jan  7 05:55:27 2026
+[*] Sun Jan 11 04:36:23 2026
 [*]
-[dumpfile] "/Users/dhunter/src/mister/Test_V810_MiSTer/rtl/v810/tb/icache_tb.vcd"
-[dumpfile_mtime] "Wed Jan  7 05:53:05 2026"
-[dumpfile_size] 1151854
-[savefile] "/Users/dhunter/src/mister/Test_V810_MiSTer/rtl/v810/tb/icache_tb.gtkw"
-[timestart] 0
+[dumpfile] "/Users/dhunter/src/mister/PCFX_MiSTer/rtl/v810/tb/icache_tb.vcd"
+[dumpfile_mtime] "Sun Jan 11 04:35:01 2026"
+[dumpfile_size] 1244944
+[savefile] "/Users/dhunter/src/mister/PCFX_MiSTer/rtl/v810/tb/icache_tb.gtkw"
+[timestart] 102459
 [size] 1333 600
 [pos] -1 -1
-*-14.327714 86400 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+*-8.581404 103480 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 [markername] AA
 [markername] BB
 [markername] CC
@@ -65,14 +65,16 @@ icache_tb.dut.icache.tag_ra[6:0]
 icache_tb.dut.icache.tag_rd[27:0]
 icache_tb.dut.icache.tag_wa[6:0]
 icache_tb.dut.icache.tag_wd[27:0]
-@29
+@28
 icache_tb.dut.icache.tag_we
 @22
-icache_tb.dut.icache.data_a[9:0]
 icache_tb.dut.icache.data_rd[31:0]
 icache_tb.dut.icache.data_wd[31:0]
 @28
 icache_tb.dut.icache.data_we
+@29
+icache_tb.dut.icache.tag_eq
+@28
 icache_tb.dut.icache.hit
 icache_tb.dut.icache.miss
 icache_tb.dut.icache.fill

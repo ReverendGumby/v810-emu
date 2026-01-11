@@ -199,10 +199,26 @@ task test_disable;
     assert(dut.icache.idataram.mem['h07] == 32'h9A009A00);
 endtask
 
+task test_tag_replace;
+    imem.load_hex16("icache_imem_replace.hex");
+
+    start_test;
+    end_test;
+
+    // A cache fill fetched into the second subblock, replacing the
+    // first tag entry (which had at least one valid subblock) with a
+    // different tag.  Verify that the first subblock (filled from the
+    // old tag) was invalidated.
+    assert(dut.icache.itagram.mem['h03] == {4'b0, 2'b10, 22'h200001});
+    assert(dut.icache.idataram.mem['h06] == 32'h0404A800); // 0x80000018
+    assert(dut.icache.idataram.mem['h07] == 32'h00006800); // 0x8000041C
+endtask
+
 initial #0 begin
     test_clear;
     test_loop;
     test_disable;
+    test_tag_replace;
 
     $display("Done!");
     $finish();

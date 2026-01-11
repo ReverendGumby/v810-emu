@@ -44,7 +44,7 @@ typedef struct packed {
 } tag_t;
 
 chcw_t              chcw;
-logic               hit, miss;
+logic               tag_eq, hit, miss;
 logic               fill;
 
 //////////////////////////////////////////////////////////////////////
@@ -103,6 +103,8 @@ v810_tagram #(.addr_width(IDXW), .data_width(28)) itagram
 
 assign tag_ra = euia_idx;
 
+wire [1:0] tag_rd_v = tag_rd.v;
+
 always @* begin
     if (chcw.icc) begin
         tag_we = '1;
@@ -113,14 +115,14 @@ always @* begin
         tag_we = tag_we_fill;
         tag_wa = tag_ra;
         tag_wd.tag = euia_tag;
-        tag_wd.v = tag_rd.v | {euia_sub, ~euia_sub};
+        tag_wd.v = ({2{tag_eq}} & tag_rd_v) | {euia_sub, ~euia_sub};
         tag_wd.necrv = '0;
     end
 end
 
 // Cacheline hit test
-wire [1:0] tag_rd_v = tag_rd.v;
-assign hit = EUIREQ & (tag_rd.tag == euia_tag) & tag_rd_v[euia_sub];
+assign tag_eq = (tag_rd.tag == euia_tag);
+assign hit = EUIREQ & tag_eq & tag_rd_v[euia_sub];
 assign miss = EUIREQ & ~hit;
 
 //////////////////////////////////////////////////////////////////////
