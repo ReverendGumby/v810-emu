@@ -8,8 +8,8 @@ import v810_pkg::*;
 
 // Clocking requirements:
 //
-// CE sets the base CPU clock rate, nominally 25 MHz.  CLK must be at
-// least twice the CE rate (e.g., 50 MHz), to satisfy I$ timing.
+// CE sets the base CPU clock rate, nominally 25 MHz.  CLK must be
+// twice the CE rate (e.g., 50 MHz).
 
 module v810
   (

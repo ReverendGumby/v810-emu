@@ -313,13 +313,16 @@ endtask
 initial begin
     halted = 0;
     res = 1;
-    ce = 1;
+    ce = 0;
     clk = 1;
 end
 
 always begin :ckgen
-    #0.02 clk = ~clk;
+    #0.01 clk = ~clk; // 50 MHz
 end
+
+always @(posedge clk)
+    ce <= ~ce;
 
 event test_started;
 
@@ -331,7 +334,8 @@ task start_test;
 
     -> test_started;
 
-    repeat (5) @(posedge clk) ;
+    repeat (10) @(posedge clk) ;
+    while (ce) @(posedge clk) ;
     res <= 0;
     @(posedge clk) ;
 endtask
@@ -341,7 +345,8 @@ task end_test;
 
     disable emergency_exit;
 
-    repeat (10) @(posedge clk) ;
+    repeat (20) @(posedge clk) ;
+    while (ce) @(posedge clk) ;
     //assert(dut_mem_dan & dut_mem_mrqn); // reset while bus is busy == bad
     res <= 1;
 endtask

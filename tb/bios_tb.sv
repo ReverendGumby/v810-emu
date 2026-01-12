@@ -137,7 +137,7 @@ initial begin
 end
 
 always begin :ckgen
-    #0.02 clk = ~clk;
+    #0.01 clk = ~clk; // 50 MHz
 end
 
 always @(posedge clk)
@@ -158,7 +158,7 @@ always @(posedge clk) if (ce) begin
     end
 end
 
-initial #(40e3) begin
+initial #(20e3) begin
     $finish();
 end
 

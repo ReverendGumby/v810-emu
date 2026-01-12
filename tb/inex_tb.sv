@@ -108,7 +108,7 @@ assign unk_cen = ~(dmem_cen & imem_cen);
 initial begin
     halted = 0;
     res = 1;
-    ce = 1;
+    ce = 0;
     cpu_int = 0;
     cpu_intv = 0;
     cpu_nmi = 0;
@@ -116,21 +116,26 @@ initial begin
 end
 
 always begin :ckgen
-    #0.02 clk = ~clk;
+    #0.01 clk = ~clk; // 50 MHz
 end
+
+always @(posedge clk)
+    ce <= ~ce;
 
 event test_started;
 
 task start_test;
     -> test_started;
 
-    repeat (5) @(posedge clk) ;
+    repeat (10) @(posedge clk) ;
+    while (ce) @(posedge clk) ;
     res <= 0;
     cpu_nmi <= 0;
     cpu_int <= 0;
     cpu_intv <= 0;
     //repeat (11) @(posedge clk) ; // wait for IF fetching first ins.
-    repeat (1) @(posedge clk) ; // wait for reset interrupt latched
+    repeat (2) @(posedge clk) ; // wait for reset interrupt latched
+    while (ce) @(posedge clk) ;
 endtask
 
 task end_test;
@@ -138,7 +143,8 @@ task end_test;
 
     disable emergency_exit;
 
-    repeat (10) @(posedge clk) ;
+    repeat (20) @(posedge clk) ;
+    while (ce) @(posedge clk) ;
     res <= 1;
 endtask
 
@@ -149,9 +155,10 @@ task test_nmi;
         $display("%t: NMI at RESET + %1dcy", $realtime, i);
         start_test;
 
-        repeat (i) @(posedge clk) ;
+        repeat (i * 2) @(posedge clk) ;
+        while (ce) @(posedge clk) ;
         cpu_nmi <= '1;
-        @(posedge clk) ;
+        repeat (2) @(posedge clk) ;
         cpu_nmi <= '0;
 
         end_test;
@@ -171,7 +178,8 @@ task test_int8;
         $display("%t: INT8 at RESET + %1dcy", $realtime, i);
         start_test;
 
-        repeat (i) @(posedge clk) ;
+        repeat (i * 2) @(posedge clk) ;
+        while (ce) @(posedge clk) ;
         cpu_int <= '1;
         cpu_intv <= 4'd8;
 
@@ -192,7 +200,8 @@ task test_int7_dis;
         $display("%t: INT7 (disabled) at RESET + %1dcy", $realtime, i);
         start_test;
 
-        repeat (i) @(posedge clk) ;
+        repeat (i * 2) @(posedge clk) ;
+        while (ce) @(posedge clk) ;
         cpu_int <= '1;
         cpu_intv <= 4'd7;
 

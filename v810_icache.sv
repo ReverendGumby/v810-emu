@@ -66,18 +66,6 @@ assign euia_tag = EUIA[TAGS+:TAGW];
 assign euia_idx = EUIA[IDXS+:IDXW];
 assign euia_sub = EUIA[SUBS];
 
-/* -----\/----- EXCLUDED -----\/-----
-//////////////////////////////////////////////////////////////////////
-// Generate a second clock enable phase
-
-logic               ce2;
-
-initial ce2 = '0;
-
-always @(posedge CLK)
-    ce2 <= CE;
- -----/\----- EXCLUDED -----/\----- */
-
 //////////////////////////////////////////////////////////////////////
 // Tag memory
 //

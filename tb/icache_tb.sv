@@ -109,7 +109,7 @@ initial begin
 end
 
 always begin :ckgen
-    #0.02 clk = ~clk; // 50 MHz
+    #0.01 clk = ~clk; // 50 MHz
 end
 
 always @(posedge clk)
@@ -144,7 +144,7 @@ task test_clear;
     start_test;
 
     // Verify cache clear has started
-    #3 assert(dut.icache.chcw.icc == '1);
+    #2 assert(dut.icache.chcw.icc == '1);
     assert(dut.icache.chcw.cen != '0);
     assert(dut.icache.chcw.cec != '0);
 
@@ -183,7 +183,7 @@ task test_disable;
     start_test;
 
     // Verify cache clear has been enabled
-    #8 assert(dut.icache.chcw.icc == '1);
+    #4 assert(dut.icache.chcw.icc == '1);
 
     end_test;
 
@@ -226,7 +226,7 @@ end
 
 always @test_started begin
     begin :emergency_exit
-        #100 ;
+        #50 ;
         // If we reach this point, halted didn't assert in time.
         $error("Emergency exit!");
         $fatal(1);
