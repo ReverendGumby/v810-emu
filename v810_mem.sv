@@ -244,9 +244,10 @@ logic           eb_data;
 logic           eb_word1, eb_word2, eb_words;
 logic           eb_next_word;  // Last cycle of access
 logic           eb_two_half;   // Access will take two halfword cycles
-logic [3:0]     eb_be_p;
-logic           eb_readyn_d;
 logic           eb_two_half_d;
+logic [3:0]     eb_be_p;
+logic           eb_ready, eb_ready_d;
+logic           eb_szrq, eb_szrq_d;
 logic [15:0]    eb_rbuf1;
 logic [31:0]    eb_di, eb_do_p;
 logic           eb_halfword_byte_in_upper_half;
@@ -259,7 +260,7 @@ logic           eb_wr, eb_wr_d;
 logic           eb_bcyst, eb_bcyst_d;
 logic [31:0]    eb_a_cur;
 
-assign eb_two_half = (bm_ebi_bc == 2'd3) & ~SZRQn;
+assign eb_two_half = bm_ebi_req & (bm_ebi_bc == 2'd3) & eb_szrq;
 
 // External bus state machine
 always @* begin
@@ -274,7 +275,7 @@ always @* begin
             ebst = EBST_T2;
         end
         EBST_T2: begin
-            if (~eb_readyn_d) begin
+            if (eb_ready_d) begin
                 if (eb_two_half_d)
                     ebst = dbg_bypass_ebi_t1 ? EBST_T2S : EBST_T1S;
                 else if (bm_ebi_req)
@@ -287,7 +288,7 @@ always @* begin
             ebst = EBST_T2S;
         end
         EBST_T2S: begin
-            if (~eb_readyn_d) begin
+            if (eb_ready_d) begin
                 if (bm_ebi_req)
                     ebst = dbg_bypass_ebi_t1 ? EBST_T2 : EBST_T1;
                 else
@@ -305,8 +306,14 @@ always @(posedge CLK) if (CE) begin
         ebstp <= ebst;
 end
 
+always @(posedge CLK) if (~CE) begin // sampled on clock negedge
+    eb_ready <= ~READYn;
+    eb_szrq <= ~SZRQn;
+end
+
 always @(posedge CLK) if (CE) begin
-    eb_readyn_d <= READYn;
+    eb_ready_d <= eb_ready;
+    eb_szrq_d <= eb_szrq;
     eb_two_half_d <= eb_two_half;
 end
 
@@ -315,7 +322,7 @@ assign eb_word1 = (ebst == EBST_T1) | (ebst == EBST_T2);
 assign eb_word2 = (ebst == EBST_T1S) | (ebst == EBST_T2S);
 assign eb_words = eb_word1 | eb_word2;
 assign eb_next_word = (((ebst == EBST_T2) & ~eb_two_half) |
-                       (ebst == EBST_T2S)) & ~READYn;
+                       (ebst == EBST_T2S)) & eb_ready;
 
 // For dynamic sizing, all data moves through D[15:0].
 
@@ -327,13 +334,13 @@ always @* begin
 end
 
 always @(posedge CLK) if (CE) begin
-    if (eb_word1 & eb_data & eb_two_half & ~READYn)
+    if (eb_word1 & eb_data & eb_two_half & eb_ready)
         // Dynamic sizing: Buffer lower halfword in first bus cycle.
         eb_rbuf1 <= D_I[15:0];
 end
 
-assign eb_halfword_byte_in_upper_half = ~(bm_ebi_bc == 2'd3) & ~SZRQn &
-                                        |bm_ebi_be[3:2];
+assign eb_halfword_byte_in_upper_half = eb_data & ~(bm_ebi_bc == 2'd3) & 
+                                        eb_szrq & |bm_ebi_be[3:2];
 
 always @* begin
     eb_di = D_I;
