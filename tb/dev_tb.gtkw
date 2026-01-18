@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Mon Jan 12 06:20:59 2026
+[*] Sun Jan 18 05:44:39 2026
 [*]
 [dumpfile] "/Users/dhunter/src/mister/PCFX_MiSTer/rtl/v810/tb/dev_tb.vcd"
-[dumpfile_mtime] "Mon Jan 12 06:20:14 2026"
-[dumpfile_size] 47840448
+[dumpfile_mtime] "Sun Jan 18 05:39:46 2026"
+[dumpfile_size] 67897894
 [savefile] "/Users/dhunter/src/mister/PCFX_MiSTer/rtl/v810/tb/dev_tb.gtkw"
-[timestart] 309811
+[timestart] 101940
 [size] 1333 600
 [pos] -1 -1
-*-7.168900 310160 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+*-10.117355 103960 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 [markername] AA
 [markername] BB
 [markername] CC
@@ -38,11 +38,12 @@
 [markername] ZZ
 [treeopen] dev_tb.
 [sst_width] 255
-[signals_width] 245
+[signals_width] 334
 [sst_expanded] 1
 [sst_vpaned_height] 145
-@800200
+@c00200
 -dut_mem
+@800200
 -wb
 @28
 dev_tb.dut_mem.wb_full
@@ -85,9 +86,7 @@ dev_tb.dut_mem.ebstp[2:0]
 dev_tb.dut_mem.eb_word1
 dev_tb.dut_mem.eb_data
 dev_tb.dut_mem.eb_two_half
-@29
 dev_tb.dut_mem.eb_two_half_d
-@28
 dev_tb.dut_mem.eb_ready
 dev_tb.dut_mem.eb_next_word
 @22
@@ -110,7 +109,7 @@ dev_tb.dut_mem.RW
 dev_tb.dut_mem.BCYSTn
 dev_tb.dut_mem.READYn
 dev_tb.dut_mem.SZRQn
-@1000200
+@1401200
 -dut_mem
 @28
 dev_tb.dut.RESn
@@ -163,7 +162,7 @@ dev_tb.dut_inex.euf
 dev_tb.dut_inex.cc[15:0]
 @1401200
 -inex
-@c00200
+@800200
 -sysreg
 @22
 dev_tb.dut_sr.eipc[31:0]
@@ -174,7 +173,7 @@ dev_tb.dut_sr.ecr[31:0]
 dev_tb.dut_sr.psw[31:0]
 @28
 dev_tb.dut.halted
-@1401200
+@1000200
 -sysreg
 @800200
 -if
@@ -274,14 +273,14 @@ dev_tb.dut.idex_ir[31:0]
 dev_tb.dut.idex_rf_rd1[31:0]
 dev_tb.dut.idex_rf_rd2[31:0]
 dev_tb.dut.idex_rf_wa[4:0]
-dev_tb.dut.idex_ctl[48:0]
+dev_tb.dut.idex_ctl[51:0]
 dev_tb.dut.alu_in1[31:0]
 dev_tb.dut.alu_in2[31:0]
 dev_tb.dut.alu_op[3:0]
 dev_tb.dut.alu_out[31:0]
 @28
 dev_tb.dut.alu_fl[3:0]
-@800200
+@c00200
 -mpy
 @28
 dev_tb.dut.alu_mpy_signed
@@ -297,8 +296,21 @@ dev_tb.dut.alu_mpy_out[31:0]
 @28
 dev_tb.dut.alu_mpy_out_neg
 dev_tb.dut.alu_mpy_ov
-@1000200
+@1401200
 -mpy
+@800200
+-div
+@22
+dev_tb.dut.alu_div_rem[31:0]
+dev_tb.dut.alu_div_quot[31:0]
+dev_tb.dut.alu_div_shifter[62:0]
+dev_tb.dut.alu_div_dsub[32:0]
+@28
+dev_tb.dut.alu_div_zdiv
+@29
+dev_tb.dut.alu_div_ov
+@1000200
+-div
 @22
 dev_tb.dut.bcond_match
 @28

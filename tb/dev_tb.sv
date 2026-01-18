@@ -1,6 +1,6 @@
 // Pipeline development testbench
 //
-// Copyright (c) 2025 David Hunter
+// Copyright (c) 2025-2026 David Hunter
 //
 // This program is GPL licensed. See COPYING for the full license.
 
@@ -360,7 +360,7 @@ end
 
 always @test_started begin
     begin :emergency_exit
-        #40 ;
+        #50 ;
         // If we reach this point, halted didn't assert in time.
         $error("Emergency exit!");
         $fatal(1);
@@ -702,6 +702,26 @@ task test_mulu;
     assert(dut.rf.rmem[16] == 32'd0);
 endtask
 
+task test_div;
+    imem.load_hex16("dev_imem_div.hex");
+    dmem.load_hex("dev_dmem_div.hex");
+
+    start_test;
+    end_test;
+
+    assert(dut.rf.rmem[16] == 32'd0);
+endtask
+
+task test_divu;
+    imem.load_hex16("dev_imem_divu.hex");
+    dmem.load_hex("dev_dmem_divu.hex");
+
+    start_test;
+    end_test;
+
+    assert(dut.rf.rmem[16] == 32'd0);
+endtask
+
 task test_all;
     test_mov_rr;
     test_alu0;
@@ -731,6 +751,8 @@ task test_all;
     test_invalid_op2;
     test_mul;
     test_mulu;
+    test_div;
+    test_divu;
 endtask
 
 task test_all_ram_modes;

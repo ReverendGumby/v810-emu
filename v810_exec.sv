@@ -1,14 +1,16 @@
 // Instruction execution unit
 //
-// Copyright (c) 2025 David Hunter
+// Copyright (c) 2025-2026 David Hunter
 //
 // This program is GPL licensed. See COPYING for the full license.
 
 // TODO: These instructions:
-// - MUL(U), DIV(U)
 // - Bit string manipulation (Bstr)
 // - Floating-point operation (Fpp)
 // - CAXI
+// TODO: These exceptions:
+// - Zero division (DIV/DIVU)
+// - All floating-point exceptions
 
 import v810_pkg::*;
 
@@ -108,6 +110,13 @@ typedef enum bit [3:0] {
     ALUOPMUL_OUTH
 } aluop_mul_t;
 
+typedef enum bit [1:0] {
+    ALUOPDIV_NOP = 2'd0,
+    ALUOPDIV_IN,
+    ALUOPDIV_SHIFT,
+    ALUOPDIV_OUTS
+} aluop_div_t;
+
 //////////////////////////////////////////////////////////////////////
 // Control registers
 
@@ -122,14 +131,16 @@ logic           halted;         // End of the line
 //////////////////////////////////////////////////////////////////////
 // Pipeline registers
 
-typedef enum bit [2:0] {
-    ALUSRC1_RF_RD1 = 3'd0,
+typedef enum bit [3:0] {
+    ALUSRC1_RF_RD1 = 4'd0,
     ALUSRC1_IMM5,
     ALUSRC1_PC,
     ALUSRC1_BMATCH,
     ALUSRC1_SR_RD,
     ALUSRC1_EXC_A,
-    ALUSRC1_MPYOUT
+    ALUSRC1_MPYOUT,
+    ALUSRC1_DIVQUOT,
+    ALUSRC1_DIVREM
 } alu_src1_t;
 
 typedef enum bit [2:0] {
@@ -147,7 +158,8 @@ typedef struct packed {
     alu_src1_t  ALUSrc1;
     alu_src2_t  ALUSrc2;
     aluop_mul_t ALUOpMul;
-    logic       ALUMulSigned;
+    aluop_div_t ALUOpDiv;
+    logic       ALUMulDivSigned;
     logic       Branch;
     logic [3:0] Bcond;
     sr_sel_t    SRSelRead;
@@ -586,7 +598,7 @@ always @* begin
             6'b001_000,             // MUL
             6'b001_010:             // MULU
                 begin
-                    id_ctl_ex.ALUMulSigned = ~ifid_ir[11];
+                    id_ctl_ex.ALUMulDivSigned = ~ifid_ir[11];
                     if (id_ccnt == 'd0) begin
                         id_rf_ra1 = ifid_ir[4:0];
                         id_rf_ra2 = ifid_ir[9:5];
@@ -647,6 +659,70 @@ always @* begin
                         id_ctl_ex.ALUSrc1 = ALUSRC1_MPYOUT;
                         id_ctl_ex.ALUOp = ALUOP_MOV;
                         id_ctl_ex.ALUOpMul = ALUOPMUL_OUTL;
+                        id_ctl_ma.FlagMask.Zero = '1;
+                        id_ctl_ma.FlagMask.Sign = '1;
+                        id_ctl_wb.RegWrite = '1;
+                    end
+                end
+            6'b001_001:             // DIV
+                begin
+                    id_ctl_ex.ALUMulDivSigned = ~ifid_ir[11];
+                    if (id_ccnt == 'd0) begin
+                        id_rf_ra1 = ifid_ir[4:0];
+                        id_rf_ra2 = ifid_ir[9:5];
+                        id_ctl_ex.ALUOpDiv = ALUOPDIV_IN;
+                        id_ctl_ex.Extend = '1;
+                    end
+                    else if ((id_ccnt >= 'd1) & (id_ccnt <= 'd32)) begin
+                        id_ctl_ex.ALUOpDiv = ALUOPDIV_SHIFT;
+                        id_ctl_ex.Extend = '1;
+                    end
+                    else if (id_ccnt == 'd33) begin
+                        id_ctl_ex.ALUOpDiv = ALUOPDIV_OUTS;
+                        id_ctl_ma.FlagMask.Over = '1;
+                        id_ctl_ex.Extend = '1;
+                    end
+                    else if (id_ccnt == 'd34) begin
+                        id_rf_wa = 'd30;
+                        id_ctl_ex.ALUSrc1 = ALUSRC1_DIVREM;
+                        id_ctl_ex.ALUOp = ALUOP_MOV;
+                        id_ctl_wb.RegWrite = '1;
+                        id_ctl_ex.Extend = '1;
+                    end
+                    else if (id_ccnt == 'd35) begin
+                        id_rf_wa = ifid_ir[9:5];
+                        id_ctl_ex.ALUSrc1 = ALUSRC1_DIVQUOT;
+                        id_ctl_ex.ALUOp = ALUOP_MOV;
+                        id_ctl_ma.FlagMask.Zero = '1;
+                        id_ctl_ma.FlagMask.Sign = '1;
+                        id_ctl_wb.RegWrite = '1;
+                    end
+                end
+            6'b001_011:             // DIVU
+                begin
+                    id_ctl_ex.ALUMulDivSigned = ~ifid_ir[11];
+                    if (id_ccnt == 'd0) begin
+                        id_rf_ra1 = ifid_ir[4:0];
+                        id_rf_ra2 = ifid_ir[9:5];
+                        id_ctl_ex.ALUOpDiv = ALUOPDIV_IN;
+                        id_ctl_ex.Extend = '1;
+                    end
+                    else if ((id_ccnt >= 'd1) & (id_ccnt <= 'd32)) begin
+                        id_ctl_ex.ALUOpDiv = ALUOPDIV_SHIFT;
+                        id_ctl_ex.Extend = '1;
+                    end
+                    else if (id_ccnt == 'd33) begin
+                        id_rf_wa = 'd30;
+                        id_ctl_ex.ALUSrc1 = ALUSRC1_DIVREM;
+                        id_ctl_ex.ALUOp = ALUOP_MOV;
+                        id_ctl_ma.FlagMask.Over = '1; // 0 -> Over
+                        id_ctl_wb.RegWrite = '1;
+                        id_ctl_ex.Extend = '1;
+                    end
+                    else if (id_ccnt == 'd34) begin
+                        id_rf_wa = ifid_ir[9:5];
+                        id_ctl_ex.ALUSrc1 = ALUSRC1_DIVQUOT;
+                        id_ctl_ex.ALUOp = ALUOP_MOV;
                         id_ctl_ma.FlagMask.Zero = '1;
                         id_ctl_ma.FlagMask.Sign = '1;
                         id_ctl_wb.RegWrite = '1;
@@ -979,6 +1055,9 @@ wire [31:0]     idex_disp26 = 32'($signed({idex_ir[9:0], idex_ir[31:16]}));
 
 logic [31:0]    alu_mpy_out;
 logic           alu_mpy_ov;
+logic [31:0]    alu_div_rem;     // numerator / remainder
+logic [31:0]    alu_div_quot;    // quotient
+logic           alu_div_ov;
 
 always @* begin
     alu_in1 = 'X;
@@ -990,6 +1069,8 @@ always @* begin
         ALUSRC1_SR_RD:  alu_in1 = ex_sr_rd;
         ALUSRC1_EXC_A:  alu_in1 = INEX_HA;
         ALUSRC1_MPYOUT: alu_in1 = alu_mpy_out;
+        ALUSRC1_DIVQUOT:alu_in1 = alu_div_quot;
+        ALUSRC1_DIVREM: alu_in1 = alu_div_rem;
         default: ;
     endcase
 end
@@ -1011,7 +1092,7 @@ assign alu_op = aluop_t'(idex_ctl.ex.ALUOp);
 
 always @* begin
     alu_fl = '0;
-    alu_fl.Over = alu_mpy_ov;
+    alu_fl.Over = alu_mpy_ov | alu_div_ov;
     case (alu_op)
         ALUOP_MOV:
             alu_out = alu_in1;
@@ -1065,7 +1146,7 @@ logic [63:0] alu_mpy_acc;
 logic        alu_mpy_cy;
 logic        alu_mpy_out_neg;
 
-assign alu_mpy_signed = idex_ctl.ex.ALUMulSigned;
+assign alu_mpy_signed = idex_ctl.ex.ALUMulDivSigned;
 
 always @(posedge CLK) if (CE) begin
     if (~RESn) begin
@@ -1128,6 +1209,63 @@ always @* begin :p_alu_mpy_out
         end
         default: ;
     endcase
+end
+
+// I have no idea how actual silicon performs divison. Here is
+// an implementation adapted from the SNES S-CPU.
+//
+// To perform signed divison:
+//  1. Make both inputs positive
+//  2. Proceed as above for unsigned division
+//  3. If exactly one input was negative, negate the output
+
+logic [31:0]    alu_div_num, alu_div_denom;
+logic [62:0]    alu_div_shifter; // denmoniator latch and shifter
+logic [32:0]    alu_div_dsub;
+logic           alu_div_zdiv;
+logic           alu_div_out_neg;
+
+assign alu_div_num = (alu_mpy_signed & alu_in1[31]) ? -alu_in1 : alu_in1;
+assign alu_div_denom = (alu_mpy_signed & alu_in2[31]) ? -alu_in2 : alu_in2;
+assign alu_div_dsub = alu_div_rem - alu_div_shifter[31:0];
+assign alu_div_zdiv = ~alu_div_dsub[32] & ~|alu_div_shifter[62:32];
+
+always @(posedge CLK) if (CE) begin
+    if (~RESn) begin
+        alu_div_rem <= '0;
+        alu_div_quot <= '0;
+        alu_div_shifter <= '0;
+        alu_div_out_neg <= '0;
+    end
+    else begin
+        case (idex_ctl.ex.ALUOpDiv)
+            ALUOPDIV_IN: begin
+                alu_div_rem <= alu_div_denom;
+                alu_div_shifter <= {alu_div_num, 31'b0};
+                alu_div_out_neg <= alu_mpy_signed & (alu_in1[31] ^ alu_in2[31]);
+            end
+            ALUOPDIV_SHIFT: begin
+                alu_div_shifter <= {1'b0, alu_div_shifter[62:1]};
+                alu_div_rem <= alu_div_zdiv ? alu_div_dsub[31:0] : alu_div_rem;
+                alu_div_quot <= {alu_div_quot[30:0], alu_div_zdiv};
+            end
+            ALUOPDIV_OUTS: begin
+                if (alu_div_out_neg) begin
+                    alu_div_rem <= -alu_div_rem;
+                    alu_div_quot <= -alu_div_quot;
+                end
+            end
+            default: ;
+        endcase
+    end
+end
+
+always @* begin :p_alu_div_out
+    alu_div_ov = '0;
+
+    if (idex_ctl.ex.ALUOpDiv == ALUOPDIV_OUTS) begin
+        alu_div_ov = (alu_div_quot == 'h80000000);
+    end
 end
 
 //////////////////////////////////////////////////////////////////////
