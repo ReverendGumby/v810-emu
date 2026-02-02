@@ -1,0 +1,10 @@
+@0
+03C0 // MOV r0, r30 // src
+A3A0 0010 // MOVEA #0x10, r0, r29 // dst
+A380 0080 // MOVEA #0x80, r0, r28 // cnt
+4360 // MOV #0, r27 // sbo
+4340 // MOV #0, r26 // dbo
+
+7E0B // MOVBSU
+
+6800 // HALT

@@ -722,6 +722,47 @@ task test_divu;
     assert(dut.rf.rmem[16] == 32'd0);
 endtask
 
+task test_movbsu0;
+    imem.load_hex16("dev_imem_movbsu0.hex");
+    dmem.load_hex("dev_dmem_movbsu0.hex");
+
+    start_test;
+    end_test;
+
+    assert(dut.rf.rmem[30] == 32'h10); // src
+    assert(dut.rf.rmem[29] == 32'h20); // dst
+    assert(dut.rf.rmem[28] == 32'd0);  // cnt
+    assert(dut.rf.rmem[27] == 32'd0);  // sbo
+    assert(dut.rf.rmem[26] == 32'd0);  // dbo
+
+    assert(dmem.mem[4] == dmem.mem[8]);
+    assert(dmem.mem[5] == dmem.mem[9]);
+    assert(dmem.mem[6] == dmem.mem[10]);
+    assert(dmem.mem[7] == dmem.mem[11]);
+endtask
+
+task test_movbsu1;
+    imem.load_hex16("dev_imem_movbsu1.hex");
+    dmem.load_hex("dev_dmem_movbsu1.hex");
+
+    start_test;
+    end_test;
+
+/* -----\/----- EXCLUDED -----\/-----
+    // TODO: How does HW actually modify the registers?
+    assert(dut.rf.rmem[30] == 32'h08); // src
+    assert(dut.rf.rmem[29] == 32'h18); // dst
+    assert(dut.rf.rmem[28] == 32'd0);  // cnt
+    assert(dut.rf.rmem[27] == 32'd4);  // sbo
+    assert(dut.rf.rmem[26] == 32'd0);  // dbo
+ -----/\----- EXCLUDED -----/\----- */
+
+    assert(dmem.mem[4] == dmem.mem[8]);
+    assert(dmem.mem[5] == dmem.mem[9]);
+    assert(dmem.mem[6] == dmem.mem[10]);
+    assert(dmem.mem[7] == dmem.mem[11]);
+endtask
+
 task test_all;
     test_mov_rr;
     test_alu0;
@@ -753,6 +794,8 @@ task test_all;
     test_mulu;
     test_div;
     test_divu;
+    test_movbsu0;
+    test_movbsu1;
 endtask
 
 task test_all_ram_modes;

@@ -117,6 +117,25 @@ typedef enum bit [1:0] {
     ALUOPDIV_OUTS
 } aluop_div_t;
 
+typedef enum bit [5:0] {
+    BSTROP_NOP = 'd0,
+    BSTROP_WR_SRC,
+    BSTROP_WR_DST,
+    BSTROP_WR_CNT,
+    BSTROP_WR_SBO,
+    BSTROP_WR_DBO,
+    BSTROP_INIT_LD_SRC,
+    BSTROP_FIRST_LD_SRC,
+    BSTROP_FULL_LD_SRC,
+    BSTROP_FULL_LD_DST,
+    BSTROP_FULL_ST_DST,
+    BSTROP_RD_SRC,
+    BSTROP_RD_DST,
+    BSTROP_RD_CNT,
+    BSTROP_RD_SBO,
+    BSTROP_RD_DBO
+} bstrop_t;
+
 //////////////////////////////////////////////////////////////////////
 // Control registers
 
@@ -160,6 +179,7 @@ typedef struct packed {
     aluop_mul_t ALUOpMul;
     aluop_div_t ALUOpDiv;
     logic       ALUMulDivSigned;
+    bstrop_t    BstrOp;
     logic       Branch;
     logic [3:0] Bcond;
     sr_sel_t    SRSelRead;
@@ -177,6 +197,9 @@ typedef struct packed {
     logic       SRWrite;
     logic       SRtoMem;
     logic       SRtoReg;
+    logic       MemtoBstr1;
+    logic       MemtoBstr2;
+    logic       BstrtoMem;
 } ctl_ma_t;
 
 typedef struct packed {
@@ -490,6 +513,9 @@ end
 //////////////////////////////////////////////////////////////////////
 
 logic           id_done;
+logic           id_bstr_skip_init_sr, id_bstr_skip_first_word,
+                id_bstr_skip_full_loop, id_bstr_skip_full_loop_ld_src,
+                id_bstr_skip_last_word;
 
 //////////////////////////////////////////////////////////////////////
 // Instruction decoder
@@ -500,7 +526,7 @@ ctl_ma_t        id_ctl_ma;
 ctl_wb_t        id_ctl_wb;
 logic           id_exc_set_ecr, id_exc_set_psw;
 logic           id_trap;
-logic [5:0]     id_ccnt;
+logic [5:0]     id_ccnt, id_ccnt_next;
 logic           id_invalid;
 
 always @* begin
@@ -513,6 +539,7 @@ always @* begin
     id_exc_set_ecr = '0;
     id_exc_set_psw = '0;
     id_trap = '0;
+    id_ccnt_next = id_ccnt + 1'd1;
     id_invalid = '0;
 
     if (ifid_exc) begin
@@ -793,6 +820,118 @@ always @* begin
                         id_ctl_wb.RegWrite = '1;
                     end
                 end
+            6'b011_111:             // Bstr (bit string)
+                begin
+                    id_ctl_ex.Extend = '1;
+                    case (id_ccnt)
+                        // Setup
+                        'd0: begin
+                            id_rf_ra1 = 5'd26;
+                            id_ctl_ex.BstrOp = BSTROP_WR_DBO;
+                        end
+                        'd1: begin
+                            id_rf_ra1 = 5'd27;
+                            id_ctl_ex.BstrOp = BSTROP_WR_SBO;
+                        end
+                        'd2: begin
+                            id_rf_ra1 = 5'd28;
+                            id_ctl_ex.BstrOp = BSTROP_WR_CNT;
+                        end
+                        'd3: begin
+                            id_rf_ra1 = 5'd29;
+                            id_ctl_ex.BstrOp = BSTROP_WR_DST;
+                        end
+                        'd4: begin
+                            id_rf_ra1 = 5'd30;
+                            id_ctl_ex.BstrOp = BSTROP_WR_SRC;
+                        end
+                        // Initialize SR
+                        'd5: begin
+                            if (~id_bstr_skip_init_sr) begin
+                                id_ctl_ex.BstrOp = BSTROP_INIT_LD_SRC;
+                                id_ctl_ma.MemReq = '1;
+                                id_ctl_ma.MemtoBstr1 = '1;
+                                id_ctl_wb.MemWidth = 2'b11;
+                            end
+                        end
+                        // Partial first dest. word
+                        'd6: begin
+                            if (id_bstr_skip_first_word)
+                                id_ccnt_next = 'd20;
+                            else begin
+                                id_ctl_ex.BstrOp = BSTROP_FIRST_LD_SRC;
+                                id_ctl_ma.MemReq = '1;
+                                id_ctl_ma.MemtoBstr1 = '1;
+                                id_ctl_wb.MemWidth = 2'b11;
+                            end
+                        end
+                        // TODO: the rest of it
+                        // Full dest. word loop
+                        'd20: begin
+                            if (id_bstr_skip_full_loop)
+                                id_ccnt_next = 'd50;
+                            else begin
+                                id_ctl_ma.MemtoBstr1 = '1;
+                                if (~id_bstr_skip_full_loop_ld_src) begin
+                                    id_ctl_ex.BstrOp = BSTROP_FULL_LD_SRC;
+                                    id_ctl_ma.MemReq = '1;
+                                    id_ctl_wb.MemWidth = 2'b11;
+                                end
+                            end
+                        end
+                        'd21: begin
+                            id_ctl_ex.BstrOp = BSTROP_FULL_LD_DST;
+                            id_ctl_ma.MemReq = '1;
+                            id_ctl_ma.MemtoBstr2 = '1;
+                            id_ctl_wb.MemWidth = 2'b11;
+                        end
+                        'd22: begin
+                            id_ctl_ex.BstrOp = BSTROP_FULL_ST_DST;
+                            id_ctl_ma.MemReq = '1;
+                            // TODO: Bypass WB to save a cycle
+                            id_ctl_ma.Write = '1;
+                            id_ctl_ma.BstrtoMem = '1;
+                            id_ctl_wb.MemWidth = 2'b11;
+                            id_ccnt_next = 'd20;
+                        end
+                        // Partial last dest. word
+                        'd50: begin
+                            if (id_bstr_skip_last_word)
+                                id_ccnt_next = 'd59;
+                            else
+                                ; // TODO
+                        end
+                        // TODO: the rest of it
+                        // Finalize
+                        'd59: begin
+                            id_rf_wa = 5'd30;
+                            id_ctl_ex.BstrOp = BSTROP_RD_SRC;
+                            id_ctl_wb.RegWrite = '1;
+                        end
+                        'd60: begin
+                            id_rf_wa = 5'd29;
+                            id_ctl_ex.BstrOp = BSTROP_RD_DST;
+                            id_ctl_wb.RegWrite = '1;
+                        end
+                        'd61: begin
+                            id_rf_wa = 5'd28;
+                            id_ctl_ex.BstrOp = BSTROP_RD_CNT;
+                            id_ctl_wb.RegWrite = '1;
+                        end
+                        'd62: begin
+                            id_rf_wa = 5'd27;
+                            id_ctl_ex.BstrOp = BSTROP_RD_SBO;
+                            id_ctl_wb.RegWrite = '1;
+                        end
+                        'd63: begin
+                            id_rf_wa = 5'd26;
+                            id_ctl_ex.BstrOp = BSTROP_RD_DBO;
+                            id_ctl_ex.Extend = '0;
+                            id_ctl_wb.RegWrite = '1;
+                        end
+                        default: ;
+                    endcase
+                end
             6'b100_???:             // Bcond (branch)
                 begin
                     id_ctl_ex.ALUSrc1 = ALUSRC1_PC;
@@ -921,7 +1060,7 @@ always @(posedge CLK) if (CE) begin
         if (id_done)
             id_ccnt <= '0;
         else
-            id_ccnt <= id_ccnt + 1'd1;
+            id_ccnt <= id_ccnt_next;
     end
 end
 
@@ -1269,6 +1408,88 @@ always @* begin :p_alu_div_out
 end
 
 //////////////////////////////////////////////////////////////////////
+// Bit string operation
+
+logic [31:0]    bstr_src, bstr_dst, bstr_cnt;
+logic [4:0]     bstr_sbo, bstr_dbo;
+logic [63:0]    bstr_sr;
+logic [31:0]    bstr_dr, bstr_do;
+logic [31:0]    bstr_alu_in1, bstr_alu_in2, bstr_alu_out;
+logic [31:0]    bstr_wb_out;
+logic           bstr_wb_out_sel;
+
+// Work register load-in and update
+always @(posedge CLK) if (CE) begin
+    if (~ex_stall) begin
+        case (idex_ctl.ex.BstrOp)
+            BSTROP_WR_SRC:
+                bstr_src <= idex_rf_rd1;
+            BSTROP_WR_DST:
+                bstr_dst <= idex_rf_rd1;
+            BSTROP_WR_CNT:
+                bstr_cnt <= idex_rf_rd1;
+            BSTROP_WR_SBO:
+                bstr_sbo <= idex_rf_rd1[4:0];
+            BSTROP_WR_DBO:
+                bstr_dbo <= idex_rf_rd1[4:0];
+            BSTROP_INIT_LD_SRC,
+            BSTROP_FIRST_LD_SRC,
+            BSTROP_FULL_LD_SRC:
+                    bstr_src <= bstr_src + 32'd4;
+            BSTROP_FULL_LD_DST:
+                bstr_cnt <= bstr_cnt - 32'd32;
+            BSTROP_FULL_ST_DST:
+                bstr_dst <= bstr_dst + 32'd4;
+            default: ;
+        endcase
+
+        bstr_src[1:0] <= '0;
+        bstr_dst[1:0] <= '0;
+    end
+end
+
+assign id_bstr_skip_init_sr = bstr_sbo < bstr_dbo;
+assign id_bstr_skip_first_word = bstr_dbo == 0;
+assign id_bstr_skip_full_loop = bstr_cnt < 'd32;
+assign id_bstr_skip_full_loop_ld_src = (bstr_cnt == 'd32) & (bstr_sbo == 0);
+assign id_bstr_skip_last_word = bstr_cnt == 0;
+
+// Bit string ALU
+assign bstr_alu_in1 = bstr_sr[6'(bstr_sbo)+:32];
+assign bstr_alu_in2 = bstr_dr;
+
+always @* begin
+    // MOVBSU
+    bstr_alu_out = bstr_alu_in1;
+end
+
+always @(posedge CLK) /* no CE */ begin
+    bstr_do <= bstr_alu_out;
+end
+
+// Work register writeback
+always @* begin
+    bstr_wb_out = '0;
+    bstr_wb_out_sel = '1;
+
+    case (idex_ctl.ex.BstrOp)
+        BSTROP_INIT_LD_SRC,
+        BSTROP_FIRST_LD_SRC,
+        BSTROP_FULL_LD_SRC:
+            bstr_wb_out = bstr_src;
+        BSTROP_FULL_LD_DST,
+        BSTROP_FULL_ST_DST:
+            bstr_wb_out = bstr_dst;
+        BSTROP_RD_SRC:  bstr_wb_out = bstr_src;
+        BSTROP_RD_DST:  bstr_wb_out = bstr_dst;
+        BSTROP_RD_CNT:  bstr_wb_out = bstr_cnt;
+        BSTROP_RD_SBO:  bstr_wb_out[4:0] = bstr_sbo;
+        BSTROP_RD_DBO:  bstr_wb_out[4:0] = bstr_dbo;
+        default:        bstr_wb_out_sel = '0;
+    endcase
+end
+
+//////////////////////////////////////////////////////////////////////
 // Branch condition test
 
 aluflags_t psw_alu_fl;
@@ -1340,7 +1561,7 @@ always @(posedge CLK) if (CE) begin
     if (~RESn | ~ex_stall) begin
         exma_rf_wa <= idex_rf_wa;
         exma_rf_rd2 <= idex_rf_rd2;
-        exma_alu_out <= alu_out;
+        exma_alu_out <= bstr_wb_out_sel ? bstr_wb_out : alu_out;
         exma_alu_fl <= alu_fl;
         exma_sr_rd <= ex_sr_rd;
         exma_ctl.ma <= exma_ctl_flush ? '0 : idex_ctl.ma;
@@ -1385,7 +1606,7 @@ end
 
 assign DA = exma_ctl.ma.SRtoMem ? exma_sr_rd : exma_alu_out;
 assign ma_di = DD_I;
-assign DD_O = ma_do;
+assign DD_O = exma_ctl.ma.BstrtoMem ? bstr_do : ma_do;
 assign DBC = exma_ctl.wb.MemWidth;
 assign DBE = ma_be;
 
@@ -1425,6 +1646,18 @@ assign PSW_SET.float_fl = '0;
 assign SR_WA = exma_ctl.ma.SRSelWrite;
 assign SR_WD = exma_alu_out;
 assign SR_WE = exma_ctl.ma.SRWrite;
+
+//////////////////////////////////////////////////////////////////////
+// Bit string memory access
+
+always @(posedge CLK) if (CE) begin
+    if (~ma_flush) begin
+        if (exma_ctl.ma.MemtoBstr1)
+            bstr_sr <= {ma_di, bstr_sr[32+:32]};
+        if (exma_ctl.ma.MemtoBstr2)
+            bstr_dr <= ma_di;
+    end
+end
 
 //////////////////////////////////////////////////////////////////////
 // MA/WB pipeline register

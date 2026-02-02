@@ -32,6 +32,8 @@ PC1  wrapped  pdh32  pdl32 |  irh  irl   PCi  ia     wrap  flush
 1    1        1      x     |  pdl  idrh  4    PCn+2  1     0
 
 
+======================================================================
+
 Pipeline timing for [3] interlock examples
 ------------------------------------------
 
@@ -89,6 +91,109 @@ Flag Hazard code, right side -- 335ms = 8 cycles/loop *
     st.b  r0, [r10]                                IF ID ..
 
 * TODO: There's another 2 cycle delay coming from somewhere.
+
+
+======================================================================
+
+Arithmetic bit string instructions
+----------------------------------
+
+MOVBSU, NOTBSU, ANDBSU, ANDNBSU, ORBSU ORNBSU, XORBSU, XORNBSU
+
+  r26 = string dest. start bit offset
+  r27 = string src. start bit offset
+  r28 = string length (bits)
+  r29 = string dest. addr.
+  r30 = string src. addr.
+
+Above regs are read into internal work registers, and written back at
+the end or exception.
+
+Work registers:
+  dbo - r26
+  sbo - r27
+  cnt - r28
+  dst - r29
+  src - r30
+  sr - shift register, 64 bits
+
+Operation pseudo-code
+---------------------
+
+Temporary variables:
+  mask - 32 bits
+  dr - 32 bits
+  n - 5 bits
+
+# Setup
+src = r30
+dst = r29
+cnt = r28
+sbo = r27
+dbo = r26
+
+# Initialize sr
+if sbo >= dbo:
+    sr >>= 32
+    ld.w src, sr[32+:32]
+    src ++
+
+# Partial first dest. word
+if dbo != 0:
+    sr >>= 32
+    ld.w src, sr[32+:32]
+    src ++
+
+    n = 32 - dbo
+    mask = -32'd1 >> n
+    if n > cnt:
+        n = cnt
+        mask = mask | (-32'd1 << (dbo + n))
+    ld.w dst, dr
+    # (sbo-dbo) should be treated as unsigned
+    dr &= mask
+    dr |= sr[5'(sbo-dbo)+:32] & ~mask
+    st.w dst, dr
+    dst ++
+
+    sbo += n
+    dbo += n
+    cnt -= n
+
+# Full dest. word loop
+while cnt >= 32:
+    sr >>= 32
+    if cnt > 32 or sbo:
+        ld.w src, sr[32+:32]
+        src ++
+
+    ld.w dst, dr
+    # Perform bit string operation here. Copy is shown.
+    dr = sr[sbo+:32]
+    st.w dst, dr
+    dst ++
+    cnt -= 32
+
+# Partial last dest. word
+if cnt:
+    sr >>= 32
+    ld.w src, sr[32+:32]
+
+    mask = -32'd1 << cnt
+    ld.w dst, dr
+    dr &= mask
+    # Perform bit string operation here.
+    dr |= sr[sbo+:32] & ~mask
+    st.w dst, dr
+
+    cnt = 0
+
+# Finalize
+r30 = src
+r29 = dst
+r28 = cnt
+r27 = sbo
+r26 = dbo
 
 
 ======================================================================

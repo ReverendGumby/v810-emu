@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.4.0 (w)1999-2022 BSI
-[*] Sun Jan 18 05:44:39 2026
+[*] Thu Feb  5 07:00:53 2026
 [*]
 [dumpfile] "/Users/dhunter/src/mister/PCFX_MiSTer/rtl/v810/tb/dev_tb.vcd"
-[dumpfile_mtime] "Sun Jan 18 05:39:46 2026"
-[dumpfile_size] 67897894
+[dumpfile_mtime] "Thu Feb  5 06:58:50 2026"
+[dumpfile_size] 71184416
 [savefile] "/Users/dhunter/src/mister/PCFX_MiSTer/rtl/v810/tb/dev_tb.gtkw"
-[timestart] 101940
+[timestart] 14018
 [size] 1333 600
 [pos] -1 -1
-*-10.117355 103960 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+*-8.419599 14640 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 [markername] AA
 [markername] BB
 [markername] CC
@@ -162,7 +162,7 @@ dev_tb.dut_inex.euf
 dev_tb.dut_inex.cc[15:0]
 @1401200
 -inex
-@800200
+@c00200
 -sysreg
 @22
 dev_tb.dut_sr.eipc[31:0]
@@ -173,9 +173,9 @@ dev_tb.dut_sr.ecr[31:0]
 dev_tb.dut_sr.psw[31:0]
 @28
 dev_tb.dut.halted
-@1000200
+@1401200
 -sysreg
-@800200
+@c00200
 -if
 @28
 dev_tb.dut.if_stall
@@ -204,7 +204,7 @@ dev_tb.dut.ir_valid
 dev_tb.dut.if_exc
 dev_tb.dut.if_exc_done
 dev_tb.dut.resh
-@1000200
+@1401200
 -if
 @800200
 -id
@@ -258,10 +258,10 @@ dev_tb.dut.id_rf_ra1[4:0]
 dev_tb.dut.id_rf_ra2[4:0]
 dev_tb.dut.id_rf_rd1[31:0]
 dev_tb.dut.id_rf_rd2[31:0]
-@1000200
--id
 @24
 dev_tb.dut.id_ccnt[5:0]
+@1000200
+-id
 @800200
 -ex
 @28
@@ -273,7 +273,7 @@ dev_tb.dut.idex_ir[31:0]
 dev_tb.dut.idex_rf_rd1[31:0]
 dev_tb.dut.idex_rf_rd2[31:0]
 dev_tb.dut.idex_rf_wa[4:0]
-dev_tb.dut.idex_ctl[51:0]
+dev_tb.dut.idex_ctl[60:0]
 dev_tb.dut.alu_in1[31:0]
 dev_tb.dut.alu_in2[31:0]
 dev_tb.dut.alu_op[3:0]
@@ -298,7 +298,7 @@ dev_tb.dut.alu_mpy_out_neg
 dev_tb.dut.alu_mpy_ov
 @1401200
 -mpy
-@800200
+@c00200
 -div
 @22
 dev_tb.dut.alu_div_rem[31:0]
@@ -307,10 +307,30 @@ dev_tb.dut.alu_div_shifter[62:0]
 dev_tb.dut.alu_div_dsub[32:0]
 @28
 dev_tb.dut.alu_div_zdiv
-@29
 dev_tb.dut.alu_div_ov
-@1000200
+@1401200
 -div
+@800200
+-bstr
+@22
+dev_tb.dut.bstr_src[31:0]
+dev_tb.dut.bstr_dst[31:0]
+dev_tb.dut.bstr_cnt[31:0]
+dev_tb.dut.bstr_sbo[4:0]
+dev_tb.dut.bstr_dbo[4:0]
+dev_tb.dut.bstr_sr[63:0]
+dev_tb.dut.bstr_dr[31:0]
+dev_tb.dut.bstr_wb_out[31:0]
+@29
+dev_tb.dut.bstr_wb_out_sel
+@28
+dev_tb.dut.id_bstr_skip_init_sr
+dev_tb.dut.id_bstr_skip_first_word
+dev_tb.dut.id_bstr_skip_full_loop
+dev_tb.dut.id_bstr_skip_full_loop_ld_src
+dev_tb.dut.id_bstr_skip_last_word
+@1000200
+-bstr
 @22
 dev_tb.dut.bcond_match
 @28
@@ -336,7 +356,7 @@ dev_tb.dut.exma_alu_out[31:0]
 dev_tb.dut.exma_alu_fl[3:0]
 @22
 dev_tb.dut.exma_sr_rd[31:0]
-dev_tb.dut.exma_ctl[20:0]
+dev_tb.dut.exma_ctl[23:0]
 dev_tb.dut.ma_di[31:0]
 dev_tb.dut.ma_do[31:0]
 @28
