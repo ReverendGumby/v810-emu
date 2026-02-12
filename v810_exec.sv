@@ -118,7 +118,7 @@ typedef enum bit [1:0] {
 } aluop_div_t;
 
 typedef enum bit [5:0] {
-    BSTROP_NOP = 'd0,
+    BSTROP_NOP = 6'd0,
     BSTROP_WR_SRC,
     BSTROP_WR_DST,
     BSTROP_WR_CNT,
