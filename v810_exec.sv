@@ -254,6 +254,7 @@ struct packed {
 logic           resh;           // reset exception is being handled
 logic           if_ins32_fetch_hi;
 wand            if_fetch_en;
+logic           if_exc;
 logic           if_exc_done;
 logic           if_exc_cur_pc;  // do not inc. PC for this exception
 
@@ -485,8 +486,6 @@ assign if_fetch_en = ~(ir_valid & if_stall);
 //////////////////////////////////////////////////////////////////////
 // Interrupt / Exception Ingress
 
-logic           if_exc;
-
 assign if_exc = INEX_IF & ~if_flush;
 
 always @(posedge CLK) if (CE) begin
@@ -549,7 +548,7 @@ always @* begin
                 id_ctl_ex.ALUSrc1 = ALUSRC1_PC;
                 id_ctl_ex.ALUOp = ALUOP_MOV;
                 id_ctl_ex.AckExcept = '1;
-                id_ctl_ma.SRSelWrite = PSW.ep ? SRSEL_FEPC : SRSEL_EIPC;
+                id_ctl_ma.SRSelWrite = sr_sel_t'(PSW.ep ? SRSEL_FEPC : SRSEL_EIPC);
                 id_ctl_ma.SRWrite = '1;
                 id_ctl_ex.Extend = '1;
             end
@@ -557,7 +556,7 @@ always @* begin
                 id_ctl_ex.ALUSrc1 = ALUSRC1_SR_RD;
                 id_ctl_ex.ALUOp = ALUOP_MOV;
                 id_ctl_ex.SRSelRead = SRSEL_PSW;
-                id_ctl_ma.SRSelWrite = PSW.ep ? SRSEL_FEPSW : SRSEL_EIPSW;
+                id_ctl_ma.SRSelWrite = sr_sel_t'(PSW.ep ? SRSEL_FEPSW : SRSEL_EIPSW);
                 id_ctl_ma.SRWrite = '1;
                 id_ctl_ex.Extend = '1;
             end
@@ -772,7 +771,7 @@ always @* begin
                     if (id_ccnt == 'd0) begin
                         id_ctl_ex.ALUSrc1 = ALUSRC1_SR_RD;
                         id_ctl_ex.ALUOp = ALUOP_MOV;
-                        id_ctl_ex.SRSelRead = PSW.np ? SRSEL_FEPC : SRSEL_EIPC;
+                        id_ctl_ex.SRSelRead = sr_sel_t'(PSW.np ? SRSEL_FEPC : SRSEL_EIPC);
                         id_ctl_ex.Branch = '1;
                         id_ctl_ex.Bcond[2:0] = BCOND_T;
                         id_ctl_ex.Extend = '1;
@@ -780,7 +779,7 @@ always @* begin
                     else if (id_ccnt == 'd1) begin
                         id_ctl_ex.ALUSrc1 = ALUSRC1_SR_RD;
                         id_ctl_ex.ALUOp = ALUOP_MOV;
-                        id_ctl_ex.SRSelRead = PSW.np ? SRSEL_FEPSW : SRSEL_EIPSW;
+                        id_ctl_ex.SRSelRead = sr_sel_t'(PSW.np ? SRSEL_FEPSW : SRSEL_EIPSW);
                         id_ctl_ma.SRSelWrite = SRSEL_PSW;
                         id_ctl_ma.SRWrite = '1;
                     end
