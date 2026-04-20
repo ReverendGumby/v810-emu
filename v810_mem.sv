@@ -121,9 +121,9 @@ bit             dbg_bypass_wb = '0;
 logic           bm_req_wb, bm_req_eud, bm_req_ici;
 bm_req_pri_t    bm_req_pri;
 logic           bm_sel_none_d;
-logic           bm_sel_wb, bm_sel_wb_d;
-logic           bm_sel_eud, bm_sel_eud_d;
-logic           bm_sel_ici, bm_sel_ici_d;
+logic           bm_sel_wb, bm_sel_wb_d = '0;
+logic           bm_sel_eud, bm_sel_eud_d = '0;
+logic           bm_sel_ici, bm_sel_ici_d = '0;
 
 logic [31:0]    bm_ebi_a;
 logic [31:0]    bm_ebi_di, bm_ebi_do;
@@ -156,14 +156,21 @@ end
 
 // One-hot selection
 assign bm_sel_none_d = ~(bm_sel_wb_d | bm_sel_eud_d | bm_sel_ici_d);
-assign bm_sel_wb = RESn & (bm_sel_wb_d | (bm_sel_none_d & (bm_req_pri == BRP_WB)));
-assign bm_sel_eud = RESn & (bm_sel_eud_d | (bm_sel_none_d & (bm_req_pri == BRP_EUD)));
-assign bm_sel_ici = RESn & (bm_sel_ici_d | (bm_sel_none_d & (bm_req_pri == BRP_ICI)));
+assign bm_sel_wb = (bm_sel_wb_d | (bm_sel_none_d & (bm_req_pri == BRP_WB)));
+assign bm_sel_eud = (bm_sel_eud_d | (bm_sel_none_d & (bm_req_pri == BRP_EUD)));
+assign bm_sel_ici = (bm_sel_ici_d | (bm_sel_none_d & (bm_req_pri == BRP_ICI)));
 
 always @(posedge CLK) if (CE) begin
-    bm_sel_wb_d <= bm_sel_wb & ~bm_ebi_ack;
-    bm_sel_eud_d <= bm_sel_eud & ~bm_ebi_ack;
-    bm_sel_ici_d <= bm_sel_ici & ~bm_ebi_ack;
+    if (~RESn) begin
+        bm_sel_wb_d <= '0;
+        bm_sel_eud_d <= '0;
+        bm_sel_ici_d <= '0;
+    end
+    else begin
+        bm_sel_wb_d <= bm_sel_wb & ~bm_ebi_ack;
+        bm_sel_eud_d <= bm_sel_eud & ~bm_ebi_ack;
+        bm_sel_ici_d <= bm_sel_ici & ~bm_ebi_ack;
+    end
 end
 
 always @* begin

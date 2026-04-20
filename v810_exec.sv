@@ -267,11 +267,11 @@ logic           imi_en;
 logic [31:0]    imi_a, imi_an;
 logic [31:0]    imi_d, imi_dbuf;
 logic [15:0]    idrh;   // last high halfword fetched
-logic           imi_a_new;
+logic           imi_a_new = '0;
 logic           imi_complete, imi_incomplete;
 
 assign IA = imi_a;
-assign IREQ = RESn & imi_a_new;
+assign IREQ = imi_a_new;
 
 always @* begin
     imi_d = imi_dbuf;
